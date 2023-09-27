@@ -1,0 +1,4 @@
+services:
+  cache.backend.momento_cache:
+    class: Drupal\momento_cache\MomentoCacheBackendFactory
+    arguments: []

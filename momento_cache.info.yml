@@ -1,0 +1,5 @@
+name: Momento Cache
+type: module
+description: "Integration of Drupal with the Momento Cache Client."
+core_version_requirement: ^9.4 || ^10
+php: 8.1
