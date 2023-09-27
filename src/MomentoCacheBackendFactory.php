@@ -14,11 +14,12 @@ class MomentoCacheBackendFactory implements CacheFactoryInterface {
     use LoggerChannelTrait;
 
     private $client;
-    private $caches = [];
+    private $caches;
     private $cacheListGoodForSeconds = 3;
     private $cacheListTimespamp;
 
     private function populateCacheList($bin) {
+        $this->caches = [];
         $this->cacheListTimespamp = time();
         $listResponse = $this->client->listCaches();
         if ($listResponse->asSuccess()) {
