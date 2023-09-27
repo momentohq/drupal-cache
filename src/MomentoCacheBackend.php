@@ -116,7 +116,7 @@ class MomentoCacheBackend implements CacheBackendInterface, CacheTagsInvalidator
         $this->getLogger('momento_cache')->debug("DELETE cid $cid");
         $deleteResponse = $this->client->delete($this->bin, $cid);
         if ($deleteResponse->asError()) {
-            $this->getLogger('momento_cache')->error("DELETE response error: " . $deleteResponse->asError()->message());
+            $this->getLogger('momento_cache')->error("DELETE response error for $cid: " . $deleteResponse->asError()->message());
         } else {
             $this->getLogger('momento_cache')->debug("DELETED $cid");
         }
@@ -136,12 +136,16 @@ class MomentoCacheBackend implements CacheBackendInterface, CacheTagsInvalidator
         // TODO: we don't have flushCache in the PHP SDK yet
         $deleteResponse = $this->client->deleteCache($this->bin);
         if ($deleteResponse->asError()) {
-            $this->getLogger('momento_cache')->error("DELETE_CACHE response error: " . $deleteResponse->asError()->message());
+            $this->getLogger('momento_cache')->error(
+                "DELETE_CACHE response error for $this->bin: " . $deleteResponse->asError()->message()
+            );
             return;
         }
         $createResponse = $this->client->createCache($this->bin);
         if ($createResponse->asError()) {
-            $this->getLogger('momento_cache')->error("CREATE_CACHE response error: " . $createResponse->asError()->message());
+            $this->getLogger('momento_cache')->error(
+                "CREATE_CACHE response error for $this->bin: " . $createResponse->asError()->message()
+            );
         }
     }
 
