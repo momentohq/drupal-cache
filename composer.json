@@ -1,5 +1,5 @@
 {
-    "name": "drupal/momento_cache",
+    "name": "momentohq/drupal-cache",
     "type": "drupal-module",
     "license": "Apache-2.0",
     "autoload": {
