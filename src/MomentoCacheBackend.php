@@ -16,20 +16,22 @@ class MomentoCacheBackend implements CacheBackendInterface, CacheTagsInvalidator
     protected $bin;
     protected $client;
     private $MAX_TTL;
+    private $cacheName;
 
-    public function __construct($bin, $client, $createCache) {
+    public function __construct($bin, $client, $createCache, $cacheName) {
         $this->MAX_TTL = intdiv(PHP_INT_MAX, 1000);
         $this->client = $client;
         $this->bin = $bin;
+        $this->cacheName = $cacheName;
 
         if ($createCache) {
-            $createResponse = $this->client->createCache($bin);
+            $createResponse = $this->client->createCache($this->cacheName);
             if ($createResponse->asError()) {
                 $this->getLogger('momento_cache')->error(
-                    "Error creating cache $bin : " . $createResponse->asError()->message()
+                    "Error creating cache $this->cacheName : " . $createResponse->asError()->message()
                 );
             } elseif ($createResponse->asSuccess()) {
-                $this->getLogger('momento_cache')->info("Created cache $bin");
+                $this->getLogger('momento_cache')->info("Created cache $this->cacheName");
             }
         }
     }
@@ -50,7 +52,7 @@ class MomentoCacheBackend implements CacheBackendInterface, CacheTagsInvalidator
         foreach (array_chunk($cids, 100) as $cidChunk) {
             $futures = [];
             foreach ($cidChunk as $cid) {
-                $futures[$cid] = $this->client->getAsync($this->bin, $cid);
+                $futures[$cid] = $this->client->getAsync($this->cacheName, $cid);
             }
 
             foreach ($futures as $cid => $future) {
@@ -69,10 +71,6 @@ class MomentoCacheBackend implements CacheBackendInterface, CacheTagsInvalidator
         return $fetched;
     }
 
-    private function getTagSetName($tag) {
-        return "_tagSet:$tag";
-    }
-
     public function set($cid, $data, $expire = CacheBackendInterface::CACHE_PERMANENT, array $tags = []) {
         $ttl = $this->MAX_TTL;
         $item = new \stdClass();
@@ -86,14 +84,14 @@ class MomentoCacheBackend implements CacheBackendInterface, CacheTagsInvalidator
         $item->tags = $tags;
 
         $this->getLogger('momento_cache')->debug("SET cid $cid in bin $this->bin with ttl $ttl");
-        $setResponse = $this->client->set($this->bin, $cid, serialize($item), $ttl);
+        $setResponse = $this->client->set($this->cacheName, $cid, serialize($item), $ttl);
         if ($setResponse->asError()) {
             $this->getLogger('momento_cache')->error("SET response error for bin $this->bin: " . $setResponse->asError()->message());
         }
         foreach ($tags as $tag) {
             $tagSetName = $this->getTagSetName($tag);
             // TODO: either prefix or hash set name so we don't accidentally overwrite keys if there is ever a collision
-            $setAddElementResponse = $this->client->setAddElement($this->bin, $tagSetName, $cid, CollectionTtl::of($this->MAX_TTL));
+            $setAddElementResponse = $this->client->setAddElement($this->cacheName, $tagSetName, $cid, CollectionTtl::of($this->MAX_TTL));
             if ($setAddElementResponse->asError()) {
                 $this->getLogger('momento_cache')->error("TAG add error in bin $this->bin for tag $tag: " . $setAddElementResponse->asError()->message());
             }
@@ -116,7 +114,7 @@ class MomentoCacheBackend implements CacheBackendInterface, CacheTagsInvalidator
     public function delete($cid) {
         // TODO: remove this cid from tags sets? would require fetching the item and accessing the tags.
         $this->getLogger('momento_cache')->debug("DELETE cid $cid from bin $this->bin");
-        $deleteResponse = $this->client->delete($this->bin, $cid);
+        $deleteResponse = $this->client->delete($this->cacheName, $cid);
         if ($deleteResponse->asError()) {
             $this->getLogger('momento_cache')->error("DELETE response error for $cid in bin $this->bin: " . $deleteResponse->asError()->message());
         } else {
@@ -136,17 +134,17 @@ class MomentoCacheBackend implements CacheBackendInterface, CacheTagsInvalidator
     public function deleteAll() {
         $this->getLogger('momento_cache')->debug("DELETE_ALL in bin $this->bin");
         // TODO: we don't have flushCache in the PHP SDK yet
-        $deleteResponse = $this->client->deleteCache($this->bin);
+        $deleteResponse = $this->client->deleteCache($this->cacheName);
         if ($deleteResponse->asError()) {
             $this->getLogger('momento_cache')->error(
-                "DELETE_CACHE response error for $this->bin: " . $deleteResponse->asError()->message()
+                "DELETE_CACHE response error for $this->cacheName: " . $deleteResponse->asError()->message()
             );
             return;
         }
-        $createResponse = $this->client->createCache($this->bin);
+        $createResponse = $this->client->createCache($this->cacheName);
         if ($createResponse->asError()) {
             $this->getLogger('momento_cache')->error(
-                "CREATE_CACHE response error for $this->bin: " . $createResponse->asError()->message()
+                "CREATE_CACHE response error for $this->cacheName: " . $createResponse->asError()->message()
             );
         }
     }
@@ -171,7 +169,7 @@ class MomentoCacheBackend implements CacheBackendInterface, CacheTagsInvalidator
         foreach ($tags as $tag) {
             $tagSetName = $this->getTagSetName($tag);
             $this->getLogger('momento_cache')->debug("Processing tag '$tag' in bin $this->bin");
-            $setFetchResponse = $this->client->setFetch($this->bin, $tagSetName);
+            $setFetchResponse = $this->client->setFetch($this->cacheName, $tagSetName);
             if ($setFetchResponse->asError()) {
                 $this->getLogger('momento_cache')->error(
                     "Error fetching TAG $tag from bin $this->bin: " . $setFetchResponse->asError()->message()
@@ -182,7 +180,7 @@ class MomentoCacheBackend implements CacheBackendInterface, CacheTagsInvalidator
                     "Deleting $tag from bin $this->bin: " . implode(', ', $cids)
                 );
                 $this->deleteMultiple($cids);
-                $tagSetDeleteResponse = $this->client->delete($this->bin, $tagSetName);
+                $tagSetDeleteResponse = $this->client->delete($this->cacheName, $tagSetName);
                 if ($tagSetDeleteResponse->asError()) {
                     $this->getLogger('momento_cache')->error(
                         "Error deleting TAG $tag from bin $this->bin: " . $setFetchResponse->asError()->message()
@@ -196,9 +194,9 @@ class MomentoCacheBackend implements CacheBackendInterface, CacheTagsInvalidator
 
     public function removeBin() {
         $this->getLogger('momento_cache')->debug("REMOVE_BIN $this->bin");
-        $deleteResponse = $this->client->deleteCache($this->bin);
+        $deleteResponse = $this->client->deleteCache($this->cacheName);
         if ($deleteResponse->asError()) {
-            $this->getLogger('momento_cache')->error("DELETE_CACHE response error for bin $this->bin: " . $deleteResponse->asError()->message());
+            $this->getLogger('momento_cache')->error("DELETE_CACHE response error for bin $this->cacheName: " . $deleteResponse->asError()->message());
         }
     }
 
@@ -206,4 +204,9 @@ class MomentoCacheBackend implements CacheBackendInterface, CacheTagsInvalidator
         // Momento will invalidate items; That item's memory allocation is then
         // freed up and reused. So nothing needs to be deleted/cleaned up here.
     }
+
+    private function getTagSetName($tag) {
+        return "_tagSet:$tag";
+    }
+
 }

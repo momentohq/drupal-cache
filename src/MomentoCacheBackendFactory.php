@@ -17,6 +17,8 @@ class MomentoCacheBackendFactory implements CacheFactoryInterface {
     private $caches;
     private $cacheListGoodForSeconds = 3;
     private $cacheListTimespamp;
+    private $authProvider;
+    private $cacheNamePrefix;
 
     private function populateCacheList($bin) {
         $this->caches = [];
@@ -29,13 +31,18 @@ class MomentoCacheBackendFactory implements CacheFactoryInterface {
         }
     }
 
+    public function __construct() {
+        $settings = Settings::get('momento_cache', []);
+        $this->cacheNamePrefix =
+            array_key_exists('cache_name_prefix', $settings) ? $settings['cache_name_prefix'] : "drupal-";
+        $authToken = array_key_exists('auth_token', $settings) ? $settings['auth_token'] : '';
+        $this->authProvider = new StringMomentoTokenProvider($authToken);
+    }
+
     public function get($bin)
     {
         if (!$this->client) {
-            $settings = Settings::get('momento_cache');
-            $authToken = $settings['auth_token'];
-            $authProvider = new StringMomentoTokenProvider($authToken);
-            $this->client = new CacheClient(Laptop::latest(), $authProvider, 30);
+            $this->client = new CacheClient(Laptop::latest(), $this->authProvider, 30);
         }
 
         if (
@@ -45,6 +52,7 @@ class MomentoCacheBackendFactory implements CacheFactoryInterface {
             $this->populateCacheList($bin);
         }
 
-        return new MomentoCacheBackend($bin, $this->client, !in_array($bin, $this->caches));
+        $cacheName = $this->cacheNamePrefix . $bin;
+        return new MomentoCacheBackend($bin, $this->client, !in_array($cacheName, $this->caches), $cacheName);
     }
 }
