@@ -8,6 +8,6 @@
         }
     },
     "require": {
-        "momentohq/client-sdk-php": "dev-drupal-psr-log-version"
+        "momentohq/client-sdk-php": "dev-php7-testing"
     }
 }
