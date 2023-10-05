@@ -7,9 +7,11 @@ use Drupal\Core\Logger\LoggerChannelTrait;
 use Drupal\Core\Site\Settings;
 use Drupal\Component\Assertion\Inspector;
 use Drupal\Component\Serialization\SerializationInterface;
-use Drupal\Core\Cache\CacheTagsInvalidatorInterface;
+//use Drupal\Core\Cache\CacheTagsInvalidatorInterface;
+use Drupal\Core\Cache\CacheTagsInvalidator;
 
-class MomentoCacheBackend implements CacheBackendInterface, CacheTagsInvalidatorInterface
+//class MomentoCacheBackend implements CacheBackendInterface, CacheTagsInvalidatorInterface
+class MomentoCacheBackend extends CacheTagsInvalidator implements CacheBackendInterface
 {
 
     use LoggerChannelTrait;
@@ -227,9 +229,10 @@ class MomentoCacheBackend implements CacheBackendInterface, CacheTagsInvalidator
     public function invalidateMultiple(array $cids)
     {
         $this->getLogger('momento_cache')->debug("INVALIDATE_MULTIPLE for bin $this->bin");
+        $requestTime = \Drupal::time()->getRequestTime();
         foreach ($cids as $cid) {
             if ($item = $this->get($cid)) {
-                // TODO: invalidate with expires field a la memcached
+                $this->set($item->cid, $item->data, $requestTime - 1, $item->tags);
             }
         }
     }
@@ -243,33 +246,35 @@ class MomentoCacheBackend implements CacheBackendInterface, CacheTagsInvalidator
     public function invalidateTags(array $tags)
     {
         $requestTime = \Drupal::time()->getRequestTime();
-        $this->getLogger('momento_cache_tag_validation')->debug(
-            "INVALIDATE_TAGS in bin $this->bin with tags: " . implode(', ', $tags)
-        );
-        $this->getLogger('momento_cache_tag_validation')->debug(
-            "INVALIDATE_TAGS already invalidated: " .
-            implode(', ', implode(', ', array_keys($this->invalidatedTags)))
-        );
-        foreach ($tags as $tag) {
-            if (isset($this->invalidatedTags[$tag])) {
-                continue;
-            }
-            $setResponse = $this->client->set($this->tagsCacheName, $tag, $requestTime, $this->MAX_TTL);
-            if ($setResponse->asError()) {
-                $this->getLogger('momento_cache_tag_validation')->error(
-                    "INVALIDATE_TAGS response error $tag: " . $setResponse->asError()->message()
-                );
-            } else {
-                $this->invalidatedTags[$tag] = $requestTime;
-                $this->getLogger('momento_cache_tag_validation')->debug(
-                    "INVALIDATE_TAGS invalidated $tag in $this->bin at $requestTime"
-                );
-                $this->getLogger('momento_cache_tag_validation')->debug(
-                    "INVALIDATE_TAGS for $this->bin invalidated tags is now: "
-                    . implode(', ', array_keys($this->invalidatedTags))
-                );
-            }
-        }
+        print("\n\n\nInvalidating tags: " . implode(', ', $tags) . "\n\n\n");
+//        $this->getLogger('momento_cache_tag_validation')->debug(
+//            "INVALIDATE_TAGS in bin $this->bin with tags: " . implode(', ', $tags)
+//        );
+//        $this->getLogger('momento_cache_tag_validation')->debug(
+//            "INVALIDATE_TAGS already invalidated: " .
+//            implode(', ', implode(', ', array_keys($this->invalidatedTags)))
+//        );
+//        foreach ($tags as $tag) {
+//            if (isset($this->invalidatedTags[$tag])) {
+//                continue;
+//            }
+//            $setResponse = $this->client->set($this->tagsCacheName, $tag, $requestTime, $this->MAX_TTL);
+//            if ($setResponse->asError()) {
+//                $this->getLogger('momento_cache_tag_validation')->error(
+//                    "INVALIDATE_TAGS response error $tag: " . $setResponse->asError()->message()
+//                );
+//            } else {
+//                $this->invalidatedTags[$tag] = $requestTime;
+//                $this->getLogger('momento_cache_tag_validation')->debug(
+//                    "INVALIDATE_TAGS invalidated $tag in $this->bin at $requestTime"
+//                );
+//                $this->getLogger('momento_cache_tag_validation')->debug(
+//                    "INVALIDATE_TAGS for $this->bin invalidated tags is now: "
+//                    . implode(', ', array_keys($this->invalidatedTags))
+//                );
+//            }
+//        }
+        print("Invalidated tags list is now: " . implode(', ', array_keys($this->invalidatedTags)));
     }
 
     public function removeBin()
