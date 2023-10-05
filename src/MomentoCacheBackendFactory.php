@@ -19,6 +19,8 @@ class MomentoCacheBackendFactory implements CacheFactoryInterface {
     private $cacheListTimespamp;
     private $authProvider;
     private $cacheNamePrefix;
+    private $tagsCacheId = '_momentoTags';
+    private $tagsCacheName;
 
     private function populateCacheList($bin) {
         $this->caches = [];
@@ -31,12 +33,24 @@ class MomentoCacheBackendFactory implements CacheFactoryInterface {
         }
     }
 
+    private function checkTagsCache() {
+        if (!in_array($this->tagsCacheName, $this->caches)) {
+            $createResponse = $this->client->createCache($this->tagsCacheName);
+            if ($createResponse->asError()) {
+                $this->getLogger('momento_cache')->error(
+                    "Error creating tags cache $this->tagsCacheName: " . $createResponse->asError()->message()
+                );
+            }
+        }
+    }
+
     public function __construct() {
         $settings = Settings::get('momento_cache', []);
         $this->cacheNamePrefix =
             array_key_exists('cache_name_prefix', $settings) ? $settings['cache_name_prefix'] : "drupal-";
         $authToken = array_key_exists('auth_token', $settings) ? $settings['auth_token'] : '';
         $this->authProvider = new StringMomentoTokenProvider($authToken);
+        $this->tagsCacheName = "$this->cacheNamePrefix$this->tagsCacheId";
     }
 
     public function get($bin)
@@ -51,8 +65,15 @@ class MomentoCacheBackendFactory implements CacheFactoryInterface {
         ) {
             $this->populateCacheList($bin);
         }
+        $this->checkTagsCache();
 
         $cacheName = $this->cacheNamePrefix . $bin;
-        return new MomentoCacheBackend($bin, $this->client, !in_array($cacheName, $this->caches), $cacheName);
+        return new MomentoCacheBackend(
+            $bin,
+            $this->client,
+            !in_array($cacheName, $this->caches),
+            $cacheName,
+            $this->tagsCacheName
+        );
     }
 }
