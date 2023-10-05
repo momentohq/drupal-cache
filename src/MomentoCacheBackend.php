@@ -49,8 +49,46 @@ class MomentoCacheBackend implements CacheBackendInterface, CacheTagsInvalidator
         return reset($recs);
     }
 
-    private function isValid() {
-
+    private function isValid($item) {
+        $requestTime = \Drupal::time()->getRequestTime();
+        $isValid = TRUE;
+        if ($item->expire != CacheBackendInterface::CACHE_PERMANENT && $item->expire < $requestTime) {
+            $item->valid = FALSE;
+            return FALSE;
+        }
+        foreach ($item->tags as $tag) {
+            if (isset($this->invalidatedTags[$tag]) && $this->invalidatedTags[$tag] > $item->created) {
+                $isValid = FALSE;
+                // TODO: should we short circuit on invalid tags or no?
+                break;
+            }
+            // see if there's an invalidation timestamp in the cache
+            $getResponse = $this->client->get($this->tagsCacheName, $tag);
+            if ($getResponse->asHit()) {
+                $this->getLogger('momento_cache_tag_validation')->debug(
+                    "FOUND INVALIDATION RECORD FOR $tag in bin $this->bin"
+                );
+                $this->invalidatedTags[$tag] = (int)$getResponse->asHit()->valueString();
+                $this->getLogger('momento_cache_tag_validation')->debug(
+                    "INVALIDATED: " . implode(', ', array_keys($this->invalidatedTags))
+                );
+                if ($this->invalidatedTags[$tag] > $item->created) {
+                    $isValid = FALSE;
+                    break;
+                }
+            } elseif ($getResponse->asError()) {
+                $this->getLogger('momento_cache_tag_validation')->error(
+                    "Error fetching invalidated tag record for $tag: " . $getResponse->asError()->message()
+                );
+            }
+        }
+        if (!$isValid) {
+            $this->getLogger('momento_cache_tag_validation')->debug(
+                "Item $item->cid is INVALIDATED"
+            );
+        }
+        $item->valid = $isValid;
+        return $isValid;
     }
 
     public function getMultiple(&$cids, $allow_invalid = FALSE)
@@ -70,10 +108,13 @@ class MomentoCacheBackend implements CacheBackendInterface, CacheTagsInvalidator
                 $getResponse = $future->wait();
                 if ($getResponse->asHit()) {
                     $result = unserialize($getResponse->asHit()->valueString());
-                    if ($result->valid || $allow_invalid) {
+                    if ($allow_invalid || $this->isValid($result)) {
                         $fetched[$cid] = $result;
+                        $this->getLogger('momento_cache')->debug("Successful GET for cid $cid in bin $this->bin");
                     }
-                    $this->getLogger('momento_cache')->debug("Successful GET for cid $cid in bin $this->bin");
+                    if (!$result->valid) {
+                        $this->getLogger('momento_cache')->debug("GET got INVALID for cid $cid in bin $this->bin");
+                    }
                 } elseif ($getResponse->asError()) {
                     $this->getLogger('momento_cache')->error(
                         "GET error for cid $cid in bin $this->bin: " . $getResponse->asError()->message()
@@ -201,12 +242,11 @@ class MomentoCacheBackend implements CacheBackendInterface, CacheTagsInvalidator
 
     public function invalidateTags(array $tags)
     {
-        // TODO: keep a list of invalidated tags so we don't invalidate the same tag multiple times
         $requestTime = \Drupal::time()->getRequestTime();
-        $this->getLogger('momento_cache_tags')->debug(
+        $this->getLogger('momento_cache_tag_validation')->debug(
             "INVALIDATE_TAGS in bin $this->bin with tags: " . implode(', ', $tags)
         );
-        $this->getLogger('momento_cache_tags')->debug(
+        $this->getLogger('momento_cache_tag_validation')->debug(
             "INVALIDATE_TAGS already invalidated: " .
             implode(', ', implode(', ', array_keys($this->invalidatedTags)))
         );
@@ -216,15 +256,15 @@ class MomentoCacheBackend implements CacheBackendInterface, CacheTagsInvalidator
             }
             $setResponse = $this->client->set($this->tagsCacheName, $tag, $requestTime, $this->MAX_TTL);
             if ($setResponse->asError()) {
-                $this->getLogger('momento_cache_tags')->error(
+                $this->getLogger('momento_cache_tag_validation')->error(
                     "INVALIDATE_TAGS response error $tag: " . $setResponse->asError()->message()
                 );
             } else {
-                $this->invalidatedTags[$tag] = TRUE;
-                $this->getLogger('momento_cache_tags')->debug(
+                $this->invalidatedTags[$tag] = $requestTime;
+                $this->getLogger('momento_cache_tag_validation')->debug(
                     "INVALIDATE_TAGS invalidated $tag in $this->bin at $requestTime"
                 );
-                $this->getLogger('momento_cache_tags')->debug(
+                $this->getLogger('momento_cache_tag_validation')->debug(
                     "INVALIDATE_TAGS for $this->bin invalidated tags is now: "
                     . implode(', ', array_keys($this->invalidatedTags))
                 );
