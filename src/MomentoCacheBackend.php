@@ -18,6 +18,7 @@ class MomentoCacheBackend extends CacheTagsInvalidator implements CacheBackendIn
 
     protected $backendName = "momento-cache";
     protected $bin;
+    protected $binTag;
     protected $client;
     private $MAX_TTL;
     private $cacheName;
@@ -29,6 +30,7 @@ class MomentoCacheBackend extends CacheTagsInvalidator implements CacheBackendIn
         $this->MAX_TTL = intdiv(PHP_INT_MAX, 1000);
         $this->client = $client;
         $this->bin = $bin;
+        $this->binTag = "$this->backendName:$this->bin";
         $this->cacheName = $cacheName;
         $this->tagsCacheName = $tagsCacheName;
 
@@ -60,26 +62,21 @@ class MomentoCacheBackend extends CacheTagsInvalidator implements CacheBackendIn
             return FALSE;
         }
         foreach ($item->tags as $tag) {
-            print("\n\nChecking tag $tag for invalidation entry\n");
-            print_r($this->invalidatedTags);
             if (isset($this->invalidatedTags[$tag]) && $this->invalidatedTags[$tag] > $item->created) {
                 $isValid = FALSE;
                 // TODO: should we short circuit on invalid tags or no?
                 break;
             }
             // see if there's an invalidation timestamp in the cache
-            print("Checking cache for invalidation entry for $tag\n");
             $getResponse = $this->client->get($this->tagsCacheName, $tag);
             if ($getResponse->asHit()) {
                 $this->getLogger('momento_cache_tag_validation')->debug(
                     "FOUND INVALIDATION RECORD FOR $tag in bin $this->bin"
                 );
                 $this->invalidatedTags[$tag] = (float)$getResponse->asHit()->valueString();
-                print("$tag invalidated at " . $this->invalidatedTags[$tag] . " (request time = $requestTime)\n");
                 $this->getLogger('momento_cache_tag_validation')->debug(
                     "INVALIDATED: " . implode(', ', array_keys($this->invalidatedTags))
                 );
-                print("I sincerely hope that " . $this->invalidatedTags[$tag] . " > $item->created");
                 if ($this->invalidatedTags[$tag] > $item->created) {
                     $isValid = FALSE;
                     break;
@@ -89,11 +86,6 @@ class MomentoCacheBackend extends CacheTagsInvalidator implements CacheBackendIn
                     "Error fetching invalidated tag record for $tag: " . $getResponse->asError()->message()
                 );
             }
-        }
-        if (!$isValid) {
-            $this->getLogger('momento_cache_tag_validation')->debug(
-                "Item $item->cid is INVALIDATED"
-            );
         }
         $item->valid = $isValid;
         return $isValid;
@@ -138,7 +130,8 @@ class MomentoCacheBackend extends CacheTagsInvalidator implements CacheBackendIn
     {
         assert(Inspector::assertAllStrings($tags));
 
-        $tags[] = $this->backendName;
+        // Add tag for invalidateAll()
+        $tags[] = $this->binTag;
         $tags = array_unique($tags);
         sort($tags);
 
@@ -148,7 +141,6 @@ class MomentoCacheBackend extends CacheTagsInvalidator implements CacheBackendIn
         $item->tags = $tags;
         $item->data = $data;
         $item->created = round(microtime(TRUE), 3);
-        print("cid $item->cid created at $item->created\n");
         $item->valid = TRUE;
 
         $requestTime = \Drupal::time()->getRequestTime();
@@ -246,17 +238,15 @@ class MomentoCacheBackend extends CacheTagsInvalidator implements CacheBackendIn
 
     public function invalidateAll()
     {
-        $requestTime = \Drupal::time()->getRequestTime();
         $invalidateTime = round(microtime(TRUE), 3);
         $this->getLogger('momento_cache')->debug("INVALIDATE_ALL for bin $this->bin");
-        $setResponse = $this->client->set($this->tagsCacheName, $this->backendName, $invalidateTime, $this->MAX_TTL);
+        $setResponse = $this->client->set($this->tagsCacheName, $this->binTag, $invalidateTime, $this->MAX_TTL);
         if ($setResponse->asError()) {
             $this->getLogger('momento_cache')->error(
                 "INVALIDATE_ALL response error for $this->tagsCacheName: " . $setResponse->asError()->message()
             );
             print("INVALIDATE_ALL response error for $this->tagsCacheName: " . $setResponse->asError()->message());
         }
-        print "\n!!!! INVALIDATED ALL !!!!\n";
     }
 
     public function invalidateTags(array $tags)
