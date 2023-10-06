@@ -20,7 +20,7 @@ class MomentoCacheBackendTest extends GenericCacheBackendUnitTestBase {
     protected static $modules = ['system', 'momento_cache'];
 
     /**
-     * Creates a new instance of DatabaseBackend.
+     * Creates a new instance of MomentoBackend.
      *
      * @return \Drupal\momento_cache\MomentoCacheBackend
      *   A new MomentoCacheBackend object.

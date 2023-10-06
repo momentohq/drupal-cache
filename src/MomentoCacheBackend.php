@@ -14,10 +14,10 @@ class MomentoCacheBackend extends CacheTagsInvalidator implements CacheBackendIn
 
     use LoggerChannelTrait;
 
-    protected $backendName = "momento-cache";
-    protected $bin;
-    protected $binTag;
-    protected $client;
+    private $backendName = "momento-cache";
+    private $bin;
+    private $binTag;
+    private $client;
     private $MAX_TTL;
     private $cacheName;
     private $tagsCacheName;
