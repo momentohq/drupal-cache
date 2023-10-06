@@ -30,4 +30,13 @@ class MomentoCacheBackendTest extends GenericCacheBackendUnitTestBase {
         return $factory->get($bin);
     }
 
+    public function testTtl() {
+        $backend = $this->getCacheBackend();
+        $backend->set('test1', 1, time() + 2);
+        $backend->set('test2', 1);
+        sleep(3);
+        $this->assertFalse($backend->get('test1'), 'Cache id test1 expired.');
+        $this->assertNotFalse($backend->get('test2'), 'Cache id test2 still exists.');
+    }
+
 }
