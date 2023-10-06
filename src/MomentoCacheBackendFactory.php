@@ -22,7 +22,51 @@ class MomentoCacheBackendFactory implements CacheFactoryInterface {
     private $tagsCacheId = '_momentoTags';
     private $tagsCacheName;
 
-    private function populateCacheList($bin) {
+    public function __construct() {
+        $settings = Settings::get('momento_cache', []);
+        $this->cacheNamePrefix =
+            array_key_exists('cache_name_prefix', $settings) ? $settings['cache_name_prefix'] : "drupal-";
+        $authToken = array_key_exists('auth_token', $settings) ? $settings['auth_token'] : getenv("MOMENTO_AUTH_TOKEN");
+        $this->authProvider = new StringMomentoTokenProvider($authToken);
+        $this->tagsCacheName = "$this->cacheNamePrefix$this->tagsCacheId";
+    }
+
+    public function get($bin)
+    {
+        $this->getMomentoClient();
+
+        if (
+            ! $this->caches
+            || ($this->cacheListTimespamp && time() - $this->cacheListTimespamp > $this->cacheListGoodForSeconds)
+        ) {
+            $this->populateCacheList();
+        }
+        $this->checkTagsCache();
+
+        $cacheName = $this->cacheNamePrefix . $bin;
+        return new MomentoCacheBackend(
+            $bin,
+            $this->client,
+            !in_array($cacheName, $this->caches),
+            $cacheName,
+            $this->tagsCacheName
+        );
+    }
+
+    public function getForTagInvalidator() {
+        $this->getMomentoClient();
+        return new MomentoCacheBackend(
+            'fakebin', $this->client, false, 'fakebin', $this->tagsCacheName
+        );
+    }
+
+    private function getMomentoClient() {
+        if (!$this->client) {
+            $this->client = new CacheClient(Laptop::latest(), $this->authProvider, 30);
+        }
+    }
+
+    private function populateCacheList() {
         $this->caches = [];
         $this->cacheListTimespamp = time();
         $listResponse = $this->client->listCaches();
@@ -42,38 +86,5 @@ class MomentoCacheBackendFactory implements CacheFactoryInterface {
                 );
             }
         }
-    }
-
-    public function __construct() {
-        $settings = Settings::get('momento_cache', []);
-        $this->cacheNamePrefix =
-            array_key_exists('cache_name_prefix', $settings) ? $settings['cache_name_prefix'] : "drupal-";
-        $authToken = array_key_exists('auth_token', $settings) ? $settings['auth_token'] : getenv("MOMENTO_AUTH_TOKEN");
-        $this->authProvider = new StringMomentoTokenProvider($authToken);
-        $this->tagsCacheName = "$this->cacheNamePrefix$this->tagsCacheId";
-    }
-
-    public function get($bin)
-    {
-        if (!$this->client) {
-            $this->client = new CacheClient(Laptop::latest(), $this->authProvider, 30);
-        }
-
-        if (
-            ! $this->caches
-            || ($this->cacheListTimespamp && time() - $this->cacheListTimespamp > $this->cacheListGoodForSeconds)
-        ) {
-            $this->populateCacheList($bin);
-        }
-        $this->checkTagsCache();
-
-        $cacheName = $this->cacheNamePrefix . $bin;
-        return new MomentoCacheBackend(
-            $bin,
-            $this->client,
-            !in_array($cacheName, $this->caches),
-            $cacheName,
-            $this->tagsCacheName
-        );
     }
 }

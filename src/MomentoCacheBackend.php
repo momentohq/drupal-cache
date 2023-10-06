@@ -7,9 +7,9 @@ use Drupal\Core\Logger\LoggerChannelTrait;
 use Drupal\Core\Site\Settings;
 use Drupal\Component\Assertion\Inspector;
 use Drupal\Component\Serialization\SerializationInterface;
-use Drupal\Core\Cache\CacheTagsInvalidator;
+use Drupal\Core\Cache\CacheTagsInvalidatorInterface;
 
-class MomentoCacheBackend implements CacheBackendInterface, CacheTagsInvalidator
+class MomentoCacheBackend implements CacheBackendInterface, CacheTagsInvalidatorInterface
 {
 
     use LoggerChannelTrait;

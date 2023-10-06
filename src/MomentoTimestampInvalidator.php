@@ -9,7 +9,7 @@ class MomentoTimestampInvalidator implements CacheTagsInvalidatorInterface {
     private $backend;
 
     public function __construct(MomentoCacheBackendFactory $factory) {
-        $this->backend = $factory->get('fakebin');
+        $this->backend = $factory->getForTagInvalidator('fakebin');
     }
 
     public function invalidateTags(array $tags) {
