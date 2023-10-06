@@ -9,7 +9,7 @@ use Drupal\Component\Assertion\Inspector;
 use Drupal\Component\Serialization\SerializationInterface;
 use Drupal\Core\Cache\CacheTagsInvalidator;
 
-class MomentoCacheBackend extends CacheTagsInvalidator implements CacheBackendInterface
+class MomentoCacheBackend implements CacheBackendInterface, CacheTagsInvalidator
 {
 
     use LoggerChannelTrait;

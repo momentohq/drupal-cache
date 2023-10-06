@@ -2,3 +2,8 @@ services:
   cache.backend.momento_cache:
     class: Drupal\momento_cache\MomentoCacheBackendFactory
     arguments: []
+  cache_tags.invalidator.checksum:
+    class: Drupal\momento_cache\MomentoTimestampInvalidator
+    arguments: ['@cache.backend.momento_cache']
+    tags:
+      - { name: cache_tags_invalidator }
