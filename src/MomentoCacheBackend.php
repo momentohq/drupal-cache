@@ -23,7 +23,6 @@ class MomentoCacheBackend extends CacheTagsInvalidator implements CacheBackendIn
     private $MAX_TTL;
     private $cacheName;
     private $tagsCacheName;
-    private $invalidatedTags = [];
 
     public function __construct($bin, $client, $createCache, $cacheName, $tagsCacheName)
     {
@@ -55,6 +54,7 @@ class MomentoCacheBackend extends CacheTagsInvalidator implements CacheBackendIn
     }
 
     private function isValid($item) {
+        $invalidatedTags = [];
         $requestTime = \Drupal::time()->getRequestTime();
         $isValid = TRUE;
         if ($item->expire != CacheBackendInterface::CACHE_PERMANENT && $item->expire < $requestTime) {
@@ -62,7 +62,7 @@ class MomentoCacheBackend extends CacheTagsInvalidator implements CacheBackendIn
             return FALSE;
         }
         foreach ($item->tags as $tag) {
-            if (isset($this->invalidatedTags[$tag]) && $this->invalidatedTags[$tag] > $item->created) {
+            if (isset($invalidatedTags[$tag]) && $invalidatedTags[$tag] > $item->created) {
                 $isValid = FALSE;
                 // TODO: should we short circuit on invalid tags or no?
                 break;
@@ -73,11 +73,11 @@ class MomentoCacheBackend extends CacheTagsInvalidator implements CacheBackendIn
                 $this->getLogger('momento_cache_tag_validation')->debug(
                     "FOUND INVALIDATION RECORD FOR $tag in bin $this->bin"
                 );
-                $this->invalidatedTags[$tag] = (float)$getResponse->asHit()->valueString();
+                $invalidatedTags[$tag] = (float)$getResponse->asHit()->valueString();
                 $this->getLogger('momento_cache_tag_validation')->debug(
-                    "INVALIDATED: " . implode(', ', array_keys($this->invalidatedTags))
+                    "INVALIDATED: " . implode(', ', array_keys($invalidatedTags))
                 );
-                if ($this->invalidatedTags[$tag] > $item->created) {
+                if ($invalidatedTags[$tag] > $item->created) {
                     $isValid = FALSE;
                     break;
                 }
@@ -140,7 +140,14 @@ class MomentoCacheBackend extends CacheTagsInvalidator implements CacheBackendIn
         $item->cid = $cid;
         $item->tags = $tags;
         $item->data = $data;
-        $item->created = round(microtime(TRUE), 3);
+        $now = round(microtime(TRUE), 3);
+
+        if ($expire != CacheBackendInterface::CACHE_PERMANENT && $expire < $now) {
+            // we're invalidating this item
+            $item->created = $expire - 1;
+        } else {
+            $item->created = $now;
+        }
         $item->valid = TRUE;
 
         $requestTime = \Drupal::time()->getRequestTime();
@@ -245,42 +252,45 @@ class MomentoCacheBackend extends CacheTagsInvalidator implements CacheBackendIn
             $this->getLogger('momento_cache')->error(
                 "INVALIDATE_ALL response error for $this->tagsCacheName: " . $setResponse->asError()->message()
             );
-            print("INVALIDATE_ALL response error for $this->tagsCacheName: " . $setResponse->asError()->message());
         }
     }
 
     public function invalidateTags(array $tags)
     {
-        $requestTime = \Drupal::time()->getRequestTime();
-        print("\n\n\nInvalidating tags: " . implode(', ', $tags) . "\n\n\n");
+        $invalidatedTags = [];
+        $invalidateTime = round(microtime(TRUE), 3);
+        print("\n\ninvalidate time is $invalidateTime\n\n");
+        print("\nInvalidating tags: " . implode(', ', $tags) . "\n\n");
         $this->getLogger('momento_cache_tag_validation')->debug(
             "INVALIDATE_TAGS in bin $this->bin with tags: " . implode(', ', $tags)
         );
         $this->getLogger('momento_cache_tag_validation')->debug(
             "INVALIDATE_TAGS already invalidated: " .
-            implode(', ', implode(', ', array_keys($this->invalidatedTags)))
+            implode(', ', array_keys($invalidatedTags))
         );
         foreach ($tags as $tag) {
-            if (isset($this->invalidatedTags[$tag])) {
+            print("processing tag $tag\n");
+            if (isset($invalidatedTags[$tag])) {
+                print("$tag found with timestamp " . $invalidatedTags[$tag] . "\n");
                 continue;
             }
-            $setResponse = $this->client->set($this->tagsCacheName, $tag, $requestTime, $this->MAX_TTL);
+            $setResponse = $this->client->set($this->tagsCacheName, $tag, $invalidateTime, $this->MAX_TTL);
             if ($setResponse->asError()) {
                 $this->getLogger('momento_cache_tag_validation')->error(
                     "INVALIDATE_TAGS response error $tag: " . $setResponse->asError()->message()
                 );
             } else {
-                $this->invalidatedTags[$tag] = $requestTime;
+                $invalidatedTags[$tag] = $invalidateTime;
                 $this->getLogger('momento_cache_tag_validation')->debug(
-                    "INVALIDATE_TAGS invalidated $tag in $this->bin at $requestTime"
+                    "INVALIDATE_TAGS invalidated $tag in $this->bin at $invalidateTime"
                 );
                 $this->getLogger('momento_cache_tag_validation')->debug(
                     "INVALIDATE_TAGS for $this->bin invalidated tags is now: "
-                    . implode(', ', array_keys($this->invalidatedTags))
+                    . implode(', ', array_keys($invalidatedTags))
                 );
             }
         }
-        print("Invalidated tags list is now: " . implode(', ', array_keys($this->invalidatedTags)));
+        print("Invalidated tags list is now:\n" . json_encode($invalidatedTags) . "\n");
     }
 
     public function removeBin()
