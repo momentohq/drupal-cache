@@ -26,7 +26,7 @@ class MomentoCacheBackendFactory implements CacheFactoryInterface {
         $settings = Settings::get('momento_cache', []);
         $this->cacheNamePrefix =
             array_key_exists('cache_name_prefix', $settings) ? $settings['cache_name_prefix'] : "drupal-";
-        $authToken = array_key_exists('auth_token', $settings) ? $settings['auth_token'] : getenv("MOMENTO_AUTH_TOKEN");
+        $authToken = array_key_exists('api_token', $settings) ? $settings['api_token'] : getenv("MOMENTO_API_TOKEN");
         $this->authProvider = new StringMomentoTokenProvider($authToken);
         $this->tagsCacheName = "$this->cacheNamePrefix$this->tagsCacheId";
     }
