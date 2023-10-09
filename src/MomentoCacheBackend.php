@@ -67,19 +67,13 @@ class MomentoCacheBackend implements CacheBackendInterface, CacheTagsInvalidator
             // see if there's an invalidation timestamp in the cache
             $getResponse = $this->client->get($this->tagsCacheName, $tag);
             if ($getResponse->asHit()) {
-                $this->getLogger('momento_cache_tag_validation')->debug(
-                    "FOUND INVALIDATION RECORD FOR $tag in bin $this->bin"
-                );
                 $invalidatedTags[$tag] = (float)$getResponse->asHit()->valueString();
-                $this->getLogger('momento_cache_tag_validation')->debug(
-                    "INVALIDATED: " . implode(', ', array_keys($invalidatedTags))
-                );
                 if ($invalidatedTags[$tag] > $item->created) {
                     $isValid = FALSE;
                     break;
                 }
             } elseif ($getResponse->asError()) {
-                $this->getLogger('momento_cache_tag_validation')->error(
+                $this->getLogger('momento_cache')->error(
                     "Error fetching invalidated tag record for $tag: " . $getResponse->asError()->message()
                 );
             }
@@ -155,7 +149,7 @@ class MomentoCacheBackend implements CacheBackendInterface, CacheTagsInvalidator
         if ($setResponse->asError()) {
             $this->getLogger('momento_cache')->error("SET response error for bin $this->bin: " . $setResponse->asError()->message());
         } else {
-            $this->getLogger('momento_cache_tags')->debug(
+            $this->getLogger('momento_cache')->debug(
                 "SET $this->bin:$cid with tags: " . implode(', ', $item->tags)
             );
         }
@@ -249,18 +243,11 @@ class MomentoCacheBackend implements CacheBackendInterface, CacheTagsInvalidator
     {
         $tags = array_unique($tags);
         $invalidateTime = round(microtime(TRUE), 3);
-        $this->getLogger('momento_cache_tag_validation')->debug(
-            "INVALIDATE_TAGS in bin $this->bin with tags: " . implode(', ', $tags)
-        );
         foreach ($tags as $tag) {
             $setResponse = $this->client->set($this->tagsCacheName, $tag, $invalidateTime, $this->MAX_TTL);
             if ($setResponse->asError()) {
-                $this->getLogger('momento_cache_tag_validation')->error(
+                $this->getLogger('momento_cache')->error(
                     "INVALIDATE_TAGS response error $tag: " . $setResponse->asError()->message()
-                );
-            } else {
-                $this->getLogger('momento_cache_tag_validation')->debug(
-                    "INVALIDATE_TAGS invalidated $tag in $this->bin at $invalidateTime"
                 );
             }
         }
