@@ -8,6 +8,6 @@
         }
     },
     "require": {
-        "momentohq/client-sdk-php": "dev-php7-testing"
+        "momentohq/client-sdk-php": "v1.4.0"
     }
 }
