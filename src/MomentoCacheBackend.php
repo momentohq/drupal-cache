@@ -3,16 +3,20 @@
 namespace Drupal\momento_cache;
 
 use Drupal\Core\Cache\CacheBackendInterface;
+use Drupal\Core\Cache\CacheTagsChecksumInterface;
+use Drupal\Core\DependencyInjection\ContainerNotInitializedException;
 use Drupal\Core\Logger\LoggerChannelTrait;
 use Drupal\Core\Site\Settings;
 use Drupal\Component\Assertion\Inspector;
 use Drupal\Component\Serialization\SerializationInterface;
 use Drupal\Core\Cache\CacheTagsInvalidatorInterface;
 
-class MomentoCacheBackend implements CacheBackendInterface, CacheTagsInvalidatorInterface
+class MomentoCacheBackend implements CacheBackendInterface
 {
 
     use LoggerChannelTrait;
+
+    private $checksumProvider;
 
     private $backendName = "momento-cache";
     private $bin;
@@ -22,61 +26,65 @@ class MomentoCacheBackend implements CacheBackendInterface, CacheTagsInvalidator
     private $cacheName;
     private $tagsCacheName;
 
-    public function __construct($bin, $client, $createCache, $cacheName, $tagsCacheName)
-    {
+    public function __construct(
+        $bin,
+        $client,
+        CacheTagsChecksumInterface $checksum_provider
+    ) {
         $this->MAX_TTL = intdiv(PHP_INT_MAX, 1000);
         $this->client = $client;
         $this->bin = $bin;
+        $this->checksumProvider = $checksum_provider;
         $this->binTag = "$this->backendName:$this->bin";
-        $this->cacheName = $cacheName;
-        $this->tagsCacheName = $tagsCacheName;
 
-        if ($createCache) {
-            $createResponse = $this->client->createCache($this->cacheName);
-            if ($createResponse->asError()) {
-                $this->getLogger('momento_cache')->error(
-                    "Error creating cache $this->cacheName : " . $createResponse->asError()->message()
-                );
-            } elseif ($createResponse->asSuccess()) {
-                $this->getLogger('momento_cache')->info("Created cache $this->cacheName");
-            }
+        $settings = Settings::get('momento_cache', []);
+        $cacheNamePrefix =
+            array_key_exists('cache_name_prefix', $settings) ? $settings['cache_name_prefix'] : "drupal-";
+        $this->cacheName = $cacheNamePrefix . $this->bin;
+    }
+
+    private function tryLogDebug($logName, $logMessage) {
+        try {
+            $this->getLogger($logName)->debug($logMessage);
+        } catch (ContainerNotInitializedException $e) {
+            // all good
+        }
+    }
+
+    private function tryLogError($logName, $logMessage) {
+        try {
+            $this->getLogger($logName)->error($logMessage);
+        } catch (ContainerNotInitializedException $e) {
+            // all good
         }
     }
 
     public function get($cid, $allow_invalid = FALSE)
     {
-        $this->getLogger('momento_cache')->debug("GET with bin $this->bin, cid " . $cid);
+        $this->tryLogDebug('momento_cache', "GET with bin $this->bin, cid " . $cid);
+//        try {
+//            $this->getLogger('momento_cache')->debug("GET with bin $this->bin, cid " . $cid);
+//        } catch(ContainerNotInitializedException $e) {
+//            // all good
+//        }
         $cids = [$cid];
         $recs = $this->getMultiple($cids, $allow_invalid);
         return reset($recs);
     }
 
-    private function isValid($item) {
-        $invalidatedTags = [];
-        $requestTime = \Drupal::time()->getRequestTime();
+    private function valid($item) {
+        // TODO: see https://www.drupal.org/project/memcache/issues/3302086 for discussion of why I'm using
+        //  $_SERVER instead of Drupal::time() and potential suggestions on how to inject the latter for use here.
+        // $requestTime = \Drupal::time()->getRequestTime();
+        $requestTime = $_SERVER['REQUEST_TIME'];
         $isValid = TRUE;
         if ($item->expire != CacheBackendInterface::CACHE_PERMANENT && $item->expire < $requestTime) {
             $item->valid = FALSE;
             return FALSE;
         }
-        foreach ($item->tags as $tag) {
-            if (isset($invalidatedTags[$tag]) && $invalidatedTags[$tag] > $item->created) {
-                $isValid = FALSE;
-                break;
-            }
-            // see if there's an invalidation timestamp in the cache
-            $getResponse = $this->client->get($this->tagsCacheName, $tag);
-            if ($getResponse->asHit()) {
-                $invalidatedTags[$tag] = (float)$getResponse->asHit()->valueString();
-                if ($invalidatedTags[$tag] > $item->created) {
-                    $isValid = FALSE;
-                    break;
-                }
-            } elseif ($getResponse->asError()) {
-                $this->getLogger('momento_cache')->error(
-                    "Error fetching invalidated tag record for $tag: " . $getResponse->asError()->message()
-                );
-            }
+
+        if (!$this->checksumProvider->isValid($item->checksum, $item->tags)) {
+            $isValid = FALSE;
         }
         $item->valid = $isValid;
         return $isValid;
@@ -84,10 +92,17 @@ class MomentoCacheBackend implements CacheBackendInterface, CacheTagsInvalidator
 
     public function getMultiple(&$cids, $allow_invalid = FALSE)
     {
-        $this->getLogger('momento_cache')->debug(
+        $this->tryLogDebug(
+            'momento_cache',
             "GET_MULTIPLE for bin $this->bin, cids: " . implode(', ', $cids)
         );
-
+//        try {
+//            $this->getLogger('momento_cache')->debug(
+//                "GET_MULTIPLE for bin $this->bin, cids: " . implode(', ', $cids)
+//            );
+//        } catch(ContainerNotInitializedException $e) {
+//            // all good
+//        }
         $fetched = [];
         foreach (array_chunk($cids, 100) as $cidChunk) {
             $futures = [];
@@ -99,17 +114,19 @@ class MomentoCacheBackend implements CacheBackendInterface, CacheTagsInvalidator
                 $getResponse = $future->wait();
                 if ($getResponse->asHit()) {
                     $result = unserialize($getResponse->asHit()->valueString());
-                    if ($allow_invalid || $this->isValid($result)) {
+                    if ($allow_invalid || $this->valid($result)) {
                         $fetched[$cid] = $result;
-                        $this->getLogger('momento_cache')->debug("Successful GET for cid $cid in bin $this->bin");
-                    }
-                    if (!$result->valid) {
-                        $this->getLogger('momento_cache')->debug("GET got INVALID for cid $cid in bin $this->bin");
+                        $this->tryLogDebug('momento_cache', "Successful GET for cid $cid in bin $this->bin");
+//                        $this->getLogger('momento_cache')->debug("Successful GET for cid $cid in bin $this->bin");
                     }
                 } elseif ($getResponse->asError()) {
-                    $this->getLogger('momento_cache')->error(
+                    $this->tryLogError(
+                        'momento_cache',
                         "GET error for cid $cid in bin $this->bin: " . $getResponse->asError()->message()
                     );
+//                    $this->getLogger('momento_cache')->error(
+//                        "GET error for cid $cid in bin $this->bin: " . $getResponse->asError()->message()
+//                    );
                 }
             }
         }
@@ -133,6 +150,7 @@ class MomentoCacheBackend implements CacheBackendInterface, CacheTagsInvalidator
         $item->data = $data;
         $item->created = round(microtime(TRUE), 3);
         $item->valid = TRUE;
+        $item->checksum = $this->checksumProvider->getCurrentChecksum($tags);
 
         $requestTime = \Drupal::time()->getRequestTime();
         if ($expire != CacheBackendInterface::CACHE_PERMANENT) {
@@ -231,26 +249,28 @@ class MomentoCacheBackend implements CacheBackendInterface, CacheTagsInvalidator
     {
         $invalidateTime = round(microtime(TRUE), 3);
         $this->getLogger('momento_cache')->debug("INVALIDATE_ALL for bin $this->bin");
-        $setResponse = $this->client->set($this->tagsCacheName, $this->binTag, $invalidateTime, $this->MAX_TTL);
-        if ($setResponse->asError()) {
-            $this->getLogger('momento_cache')->error(
-                "INVALIDATE_ALL response error for $this->tagsCacheName: " . $setResponse->asError()->message()
-            );
-        }
+        $this->invalidateTags([$this->binTag]);
+//        $setResponse = $this->client->set($this->tagsCacheName, $this->binTag, $invalidateTime, $this->MAX_TTL);
+//        if ($setResponse->asError()) {
+//            $this->getLogger('momento_cache')->error(
+//                "INVALIDATE_ALL response error for $this->tagsCacheName: " . $setResponse->asError()->message()
+//            );
+//        }
     }
 
     public function invalidateTags(array $tags)
     {
-        $tags = array_unique($tags);
-        $invalidateTime = round(microtime(TRUE), 3);
-        foreach ($tags as $tag) {
-            $setResponse = $this->client->set($this->tagsCacheName, $tag, $invalidateTime, $this->MAX_TTL);
-            if ($setResponse->asError()) {
-                $this->getLogger('momento_cache')->error(
-                    "INVALIDATE_TAGS response error $tag: " . $setResponse->asError()->message()
-                );
-            }
-        }
+        $this->checksumProvider->invalidateTags($tags);
+//        $tags = array_unique($tags);
+//        $invalidateTime = round(microtime(TRUE), 3);
+//        foreach ($tags as $tag) {
+//            $setResponse = $this->client->set($this->tagsCacheName, $tag, $invalidateTime, $this->MAX_TTL);
+//            if ($setResponse->asError()) {
+//                $this->getLogger('momento_cache')->error(
+//                    "INVALIDATE_TAGS response error $tag: " . $setResponse->asError()->message()
+//                );
+//            }
+//        }
     }
 
     public function removeBin()
