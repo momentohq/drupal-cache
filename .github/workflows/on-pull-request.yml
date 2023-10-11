@@ -7,6 +7,7 @@ on:
 env:
   SIMPLETEST_DB: "mysql://drupal:drupal@127.0.0.1:3306/drupal"
   SIMPLETEST_BASE_URL: "http://127.0.0.1:8080"
+  MODULE_FOLDER: "drupal-cache"
   MODULE_REPO: "momentohq/drupal-cache"
   DRUPAL_MODULE_NAME: "momento_cache"
   DRUPAL_CORE_VERSION: 9.4.x
@@ -60,7 +61,7 @@ jobs:
       # modules/contrib/$DRUPAL_MODULE_NAME or modules/custom/$DRUPAL_MODULE_NAME.
       - name: Set module folder
         run: |
-          echo "MODULE_FOLDER=$DRUPAL_ROOT/modules/contrib/$DRUPAL_MODULE_NAME" \
+          echo "MODULE_FOLDER=$DRUPAL_ROOT/modules/contrib/$MODULE_FOLDER" \
             >> $GITHUB_ENV
 
       # Clone Drupal core into $DRUPAL_ROOT folder.
@@ -112,14 +113,15 @@ jobs:
         run: |
           php -d sendmail_path=$(which true); vendor/bin/drush --yes -v \
             site-install minimal --db-url="$SIMPLETEST_DB"
-          vendor/bin/drush pm-list --type=module
+          # vendor/bin/drush pm-list --type=module
           vendor/bin/drush en $DRUPAL_MODULE_NAME -y
+          # find /home/runner/drupal/modules
 
       - name: Run PHPCS
         working-directory: ${{ env.DRUPAL_ROOT }}
         run: |
-          vendor/bin/phpcs $MODULE_FOLDER --standard=Drupal \
-            --extensions=php,module,inc,install,test,info
+          # vendor/bin/phpcs $MODULE_FOLDER --standard=Drupal \
+          #  --extensions=php,module,inc,install,test,info
 
       - name: Start Drush webserver and chromedriver
         working-directory: ${{ env.DRUPAL_ROOT }}

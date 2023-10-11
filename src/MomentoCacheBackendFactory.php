@@ -3,15 +3,18 @@
 namespace Drupal\momento_cache;
 
 use Drupal\Core\Cache\CacheFactoryInterface;
+use Drupal\Core\Cache\CacheTagsChecksumInterface;
 use Drupal\Core\Logger\LoggerChannelTrait;
 use Drupal\Core\Site\Settings;
-use Momento\Auth\StringMomentoTokenProvider;
-use Momento\Cache\CacheClient;
-use Momento\Config\Configurations\Laptop;
+use Drupal\momento_cache\Client\MomentoClientFactory;
 
 class MomentoCacheBackendFactory implements CacheFactoryInterface {
 
     use LoggerChannelTrait;
+
+    private $momentoFactory;
+    private $checksumProvider;
+    private $timestampInvalidator;
 
     private $client;
     private $caches;
@@ -22,48 +25,37 @@ class MomentoCacheBackendFactory implements CacheFactoryInterface {
     private $tagsCacheId = '_momentoTags';
     private $tagsCacheName;
 
-    public function __construct() {
+
+    public function __construct(
+        MomentoClientFactory $momento_factory,
+        CacheTagsChecksumInterface $checksum_provider
+    ) {
+        $this->momentoFactory = $momento_factory;
+        $this->checksumProvider = $checksum_provider;
         $settings = Settings::get('momento_cache', []);
         $this->cacheNamePrefix =
             array_key_exists('cache_name_prefix', $settings) ? $settings['cache_name_prefix'] : "drupal-";
-        $authToken = array_key_exists('api_token', $settings) ? $settings['api_token'] : getenv("MOMENTO_API_TOKEN");
-        $this->authProvider = new StringMomentoTokenProvider($authToken);
-        $this->tagsCacheName = "$this->cacheNamePrefix$this->tagsCacheId";
+        $this->client = $this->momentoFactory->get();
     }
 
     public function get($bin)
     {
-        $this->getMomentoClient();
-
         if (
             ! $this->caches
             || ($this->cacheListTimespamp && time() - $this->cacheListTimespamp > $this->cacheListGoodForSeconds)
         ) {
             $this->populateCacheList();
         }
-        $this->checkTagsCache();
 
         $cacheName = $this->cacheNamePrefix . $bin;
+        if (!in_array($cacheName, $this->caches)) {
+            $this->createCache($cacheName);
+        }
         return new MomentoCacheBackend(
             $bin,
             $this->client,
-            !in_array($cacheName, $this->caches),
-            $cacheName,
-            $this->tagsCacheName
+            $this->checksumProvider
         );
-    }
-
-    public function getForTagInvalidator() {
-        $this->getMomentoClient();
-        return new MomentoCacheBackend(
-            'fakebin', $this->client, false, 'fakebin', $this->tagsCacheName
-        );
-    }
-
-    private function getMomentoClient() {
-        if (!$this->client) {
-            $this->client = new CacheClient(Laptop::latest(), $this->authProvider, 30);
-        }
     }
 
     private function populateCacheList() {
@@ -77,14 +69,14 @@ class MomentoCacheBackendFactory implements CacheFactoryInterface {
         }
     }
 
-    private function checkTagsCache() {
-        if (!in_array($this->tagsCacheName, $this->caches)) {
-            $createResponse = $this->client->createCache($this->tagsCacheName);
-            if ($createResponse->asError()) {
-                $this->getLogger('momento_cache')->error(
-                    "Error creating tags cache $this->tagsCacheName: " . $createResponse->asError()->message()
-                );
-            }
+    private function createCache($cacheName) {
+        $createResponse = $this->client->createCache($cacheName);
+        if ($createResponse->asError()) {
+            $this->getLogger('momento_cache')->error(
+                "Error creating cache $cacheName : " . $createResponse->asError()->message()
+            );
+        } elseif ($createResponse->asSuccess()) {
+            $this->getLogger('momento_cache')->info("Created cache $cacheName");
         }
     }
 }

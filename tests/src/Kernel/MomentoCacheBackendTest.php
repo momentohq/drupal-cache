@@ -2,8 +2,10 @@
 
 namespace Drupal\Tests\momento_cache\Kernel;
 
+use Drupal\Core\Cache\DatabaseCacheTagsChecksum;
 use Drupal\KernelTests\Core\Cache\GenericCacheBackendUnitTestBase;
 use Drupal\momento_cache\MomentoCacheBackendFactory;
+use Drupal\momento_cache\Client\MomentoClientFactory;
 
 /**
  * Tests the MomentoCacheBackend.
@@ -26,8 +28,10 @@ class MomentoCacheBackendTest extends GenericCacheBackendUnitTestBase {
      *   A new MomentoCacheBackend object.
      */
     protected function createCacheBackend($bin) {
-        $factory = new MomentoCacheBackendFactory();
-        return $factory->get($bin);
+        $clientFactory = $this->container->get('momento_cache.factory');
+        $checksumProvider = $this->container->get('cache_tags.invalidator.checksum');
+        $backendFactory = new MomentoCacheBackendFactory($clientFactory, $checksumProvider);
+        return $backendFactory->get($bin);
     }
 
     public function testTtl() {
