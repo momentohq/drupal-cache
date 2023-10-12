@@ -47,7 +47,7 @@ class MomentoCacheBackend implements CacheBackendInterface
         try {
             $this->getLogger($logName)->debug($logMessage);
         } catch (ContainerNotInitializedException $e) {
-            // all good
+            // the call to getLogger() fails until the container is initialized
         }
     }
 
@@ -55,18 +55,13 @@ class MomentoCacheBackend implements CacheBackendInterface
         try {
             $this->getLogger($logName)->error($logMessage);
         } catch (ContainerNotInitializedException $e) {
-            // all good
+            // the call to getLogger() fails until the container is initialized
         }
     }
 
     public function get($cid, $allow_invalid = FALSE)
     {
         $this->tryLogDebug('momento_cache', "GET with bin $this->bin, cid " . $cid);
-//        try {
-//            $this->getLogger('momento_cache')->debug("GET with bin $this->bin, cid " . $cid);
-//        } catch(ContainerNotInitializedException $e) {
-//            // all good
-//        }
         $cids = [$cid];
         $recs = $this->getMultiple($cids, $allow_invalid);
         return reset($recs);
@@ -96,13 +91,6 @@ class MomentoCacheBackend implements CacheBackendInterface
             'momento_cache',
             "GET_MULTIPLE for bin $this->bin, cids: " . implode(', ', $cids)
         );
-//        try {
-//            $this->getLogger('momento_cache')->debug(
-//                "GET_MULTIPLE for bin $this->bin, cids: " . implode(', ', $cids)
-//            );
-//        } catch(ContainerNotInitializedException $e) {
-//            // all good
-//        }
         $fetched = [];
         foreach (array_chunk($cids, 100) as $cidChunk) {
             $futures = [];
@@ -116,17 +104,15 @@ class MomentoCacheBackend implements CacheBackendInterface
                     $result = unserialize($getResponse->asHit()->valueString());
                     if ($allow_invalid || $this->valid($result)) {
                         $fetched[$cid] = $result;
-                        $this->tryLogDebug('momento_cache', "Successful GET for cid $cid in bin $this->bin");
-//                        $this->getLogger('momento_cache')->debug("Successful GET for cid $cid in bin $this->bin");
+                        $this->tryLogDebug(
+                            'momento_cache', "Successful GET for cid $cid in bin $this->bin"
+                        );
                     }
                 } elseif ($getResponse->asError()) {
                     $this->tryLogError(
                         'momento_cache',
                         "GET error for cid $cid in bin $this->bin: " . $getResponse->asError()->message()
                     );
-//                    $this->getLogger('momento_cache')->error(
-//                        "GET error for cid $cid in bin $this->bin: " . $getResponse->asError()->message()
-//                    );
                 }
             }
         }
