@@ -36,10 +36,6 @@ $settings['bootstrap_container_definition'] = [
         'momento_cache.factory' => [
             'class' => 'Drupal\momento_cache\Client\MomentoClientFactory'
         ],
-        'momento_cache.timestamp.invalidator.bin' => [
-            'class' => 'Drupal\momento_cache\Invalidator\MomentoTimestampInvalidator',
-            'arguments' => ['@momento_cache.factory']
-        ],
         'momento_cache.backend.cache.container' => [
             'class' => 'Drupal\momento_cache\MomentoCacheBackend',
             'factory' => ['@momento_cache.factory', 'get'],
