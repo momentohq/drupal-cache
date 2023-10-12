@@ -6,7 +6,7 @@ A Momento API Token is required. You can generate one using the [Momento Console
 
 ## Installation
 
-Add the module with `composer require 'momentohq/drupal-cache:v0.3.0'`. You may need to edit your `composer.json` to set `minimum-stability` to `dev`.
+Add the module with `composer require 'momentohq/drupal-cache:v0.3.1'`. You may need to edit your `composer.json` to set `minimum-stability` to `dev`.
 
 Enable the module in your Drupal administrator interface.
 
