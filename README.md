@@ -6,7 +6,7 @@ A Momento API Token is required. You can generate one using the [Momento Console
 
 ## Installation
 
-Add the module with `composer require 'momentohq/drupal-cache:v0.3.1'`. You may need to edit your `composer.json` to set `minimum-stability` to `dev`.
+Add the module with `composer require 'momentohq/drupal-cache:v0.3.2'`. You may need to edit your `composer.json` to set `minimum-stability` to `dev`.
 
 Enable the module in your Drupal administrator interface.
 
@@ -24,6 +24,7 @@ Replace `<YOUR_CACHE_NAME_PREFIX>` with a string to be prepended to the names of
 
 Finally, add the following to `settings.php`:
 
+```php
 $settings['bootstrap_container_definition'] = [
     'parameters'=>[],
     'services' => [
@@ -54,3 +55,4 @@ $settings['bootstrap_container_definition'] = [
         ]
     ]
 ];
+```
