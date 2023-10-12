@@ -70,8 +70,11 @@ class MomentoCacheBackend implements CacheBackendInterface
     private function valid($item) {
         // TODO: see https://www.drupal.org/project/memcache/issues/3302086 for discussion of why I'm using
         //  $_SERVER instead of Drupal::time() and potential suggestions on how to inject the latter for use here.
-        // $requestTime = \Drupal::time()->getRequestTime();
-        $requestTime = $_SERVER['REQUEST_TIME'];
+        try {
+            $requestTime = \Drupal::time()->getRequestTime();
+        } catch (ContainerNotInitializedException $e) {
+            $requestTime = $_SERVER['REQUEST_TIME'];
+        }
         $isValid = TRUE;
         if ($item->expire != CacheBackendInterface::CACHE_PERMANENT && $item->expire < $requestTime) {
             $item->valid = FALSE;
