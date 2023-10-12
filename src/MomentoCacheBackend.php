@@ -135,6 +135,7 @@ class MomentoCacheBackend implements CacheBackendInterface
         $ttl = $this->MAX_TTL;
         $item = new \stdClass();
         $item->cid = $cid;
+//        $item->tags = implode(' ', $tags);
         $item->tags = $tags;
         $item->data = $data;
         $item->created = round(microtime(TRUE), 3);
@@ -178,11 +179,12 @@ class MomentoCacheBackend implements CacheBackendInterface
 
     public function delete($cid)
     {
-        // TODO: remove this cid from tags sets? would require fetching the item and accessing the tags.
         $this->getLogger('momento_cache')->debug("DELETE cid $cid from bin $this->bin");
         $deleteResponse = $this->client->delete($this->cacheName, $cid);
         if ($deleteResponse->asError()) {
-            $this->getLogger('momento_cache')->error("DELETE response error for $cid in bin $this->bin: " . $deleteResponse->asError()->message());
+            $this->getLogger('momento_cache')->error(
+                "DELETE response error for $cid in bin $this->bin: " . $deleteResponse->asError()->message()
+            );
         } else {
             $this->getLogger('momento_cache')->debug("DELETED $cid from bin $this->bin");
         }

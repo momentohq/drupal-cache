@@ -46,6 +46,7 @@ jobs:
           php-version: '${{ matrix.php-version }}'
           extensions: grpc
           tools: composer:v2
+          ini-values: zend.assertions=1
 
       # The next two steps exposes $DRUPAL_ROOT and $MODULE_FOLDER environment
       # variables.
