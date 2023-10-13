@@ -31,13 +31,13 @@ class MomentoClientFactory {
         if (!$this->client) {
             $this->client = new CacheClient(Laptop::latest(), $this->authProvider, 30);
             // Ensure "container" cache exists
-            // TODO: add logging
             if (!$this->containerCacheCreated) {
                 $createResponse = $this->client->createCache($this->cachePrefix . 'container');
                 if ($createResponse->asSuccess()) {
                     $this->containerCacheCreated = true;
                 } elseif ($createResponse->asError()) {
                     try {
+                        // TODO: unify logging interface and direct this message to the logfile.
                         $this->getLogger('momento_cache')->error(
                             "Error getting Momento client: " . $createResponse->asError()->message()
                         );

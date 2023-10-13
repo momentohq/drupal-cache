@@ -16,11 +16,14 @@ Add the following to your `settings.php` file:
 $settings['cache']['default'] = 'cache.backend.momento_cache';
 $settings['momento_cache']['api_token'] = '<YOUR_MOMENTO_TOKEN>';
 $settings['momento_cache']['cache_name_prefix'] = '<YOUR_CACHE_NAME_PREFIX>';
+$settings['momento_cache']['logfile'] = '<YOUR_LOG_FILE_PATH>';
 ```
 
 Replace `<YOUR_MOMENTO_TOKEN>` with the token you generated in the console. You may also use an environment variable named `MOMENTO_API_TOKEN` to pass your API token to the Momento cache backend. The module will check for the token in the settings file first and will fall back to the environment variable if a token is not found in the settings.
 
 Replace `<YOUR_CACHE_NAME_PREFIX>` with a string to be prepended to the names of the underlying caches. The prefix will prevent cache name collisions when multiple Drupal installs are backed by the same Momento account. If you don't provide a prefix in settings, the prefix "drupal-" is used.
+
+Replace `<YOUR_LOG_FILE_PATH>` with the path of a file writable by your Drupal server. This logfile is used for logging and timing requests as they are handled by the module. If undefined or empty, no logging is performed.
 
 Finally, add the following to `settings.php`:
 
@@ -47,7 +50,7 @@ $settings['bootstrap_container_definition'] = [
         ],
         'cache.container' => [
             'class' => 'Drupal\momento_cache\MomentoCacheBackend',
-            'arguments' => ['container', '@momento_cache.backend.cache.container', '@cache_tags_provider.container', 'momento_cache.timestamp.invalidator.bin']
+            'arguments' => ['container', '@momento_cache.backend.cache.container', '@cache_tags_provider.container']
         ]
     ]
 ];

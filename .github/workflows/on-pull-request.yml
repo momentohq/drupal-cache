@@ -165,5 +165,5 @@ jobs:
         run: |
           vendor/bin/phpunit --bootstrap $DRUPAL_ROOT/core/tests/bootstrap.php \
             -c $MODULE_FOLDER/phpunit.xml $MODULE_FOLDER
-        env:
-          MOMENTO_CACHE_NAME_PREFIX: drupal-test-${{ matrix.php-version }}
+#        env:
+#          MOMENTO_CACHE_NAME_PREFIX: drupal-test-${{ matrix.php-version }}

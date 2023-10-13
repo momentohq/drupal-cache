@@ -24,6 +24,7 @@ class MomentoCacheBackendFactory implements CacheFactoryInterface {
     private $cacheNamePrefix;
     private $tagsCacheId = '_momentoTags';
     private $tagsCacheName;
+    private $backends = [];
 
 
     public function __construct(
@@ -40,6 +41,10 @@ class MomentoCacheBackendFactory implements CacheFactoryInterface {
 
     public function get($bin)
     {
+        if (array_key_exists($bin, $this->backends)) {
+            return $this->backends[$bin];
+        }
+
         if (
             ! $this->caches
             || ($this->cacheListTimespamp && time() - $this->cacheListTimespamp > $this->cacheListGoodForSeconds)
@@ -51,11 +56,13 @@ class MomentoCacheBackendFactory implements CacheFactoryInterface {
         if (!in_array($cacheName, $this->caches)) {
             $this->createCache($cacheName);
         }
-        return new MomentoCacheBackend(
+        $backend = new MomentoCacheBackend(
             $bin,
             $this->client,
             $this->checksumProvider
         );
+        $this->backends[$bin] = $backend;
+        return $backend;
     }
 
     private function populateCacheList() {
