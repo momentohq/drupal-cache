@@ -19,9 +19,10 @@ jobs:
   test:
     runs-on: ubuntu-latest
     strategy:
+      max-parallel: 1
       fail-fast: true
       matrix:
-        php-version: ['7.4'] # , '8.0', '8.1']
+        php-version: ['7.4', '8.0', '8.1']
 
     services:
       mariadb:
@@ -164,3 +165,5 @@ jobs:
         run: |
           vendor/bin/phpunit --bootstrap $DRUPAL_ROOT/core/tests/bootstrap.php \
             -c $MODULE_FOLDER/phpunit.xml $MODULE_FOLDER
+        env:
+          MOMENTO_CACHE_NAME_PREFIX: drupal-test-${{ matrix.php-version }}

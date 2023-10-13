@@ -33,8 +33,8 @@ class MomentoCacheBackendFactory implements CacheFactoryInterface {
         $this->momentoFactory = $momento_factory;
         $this->checksumProvider = $checksum_provider;
         $settings = Settings::get('momento_cache', []);
-        $this->cacheNamePrefix =
-            array_key_exists('cache_name_prefix', $settings) ? $settings['cache_name_prefix'] : "drupal-";
+        $this->cacheNamePrefix = array_key_exists('cache_name_prefix', $settings) ?
+            $settings['cache_name_prefix'] : "drupal-";
         $this->client = $this->momentoFactory->get();
     }
 
