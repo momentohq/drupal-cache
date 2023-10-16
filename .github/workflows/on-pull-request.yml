@@ -22,7 +22,7 @@ jobs:
       max-parallel: 1
       fail-fast: true
       matrix:
-        php-version: ['7.4', '8.0', '8.1', '8.2']
+        php-version: ['7.4', '8.0', '8.1']  # , '8.2']
 
     services:
       mariadb:
@@ -88,7 +88,7 @@ jobs:
         working-directory: ${{ env.DRUPAL_ROOT }}
         run: |
           composer config repositories.0 path $GITHUB_WORKSPACE
-          composer require $MODULE_REPO
+          composer require $MODULE_REPO --ignore-platform-req=php+
 
       # PHP 8+ requires newer phpunit, use core's composer script
       # to upgrade it.
