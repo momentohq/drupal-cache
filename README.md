@@ -4,11 +4,13 @@
 
 A Momento API Token is required. You can generate one using the [Momento Console](https://console.gomomento.com/).
 
-## Installation
+The Momento Cache module uses [Momento's PHP SDK](https://docs.momentohq.com/cache/develop/sdks/php) internally. While installing the Drupal module will automatically install the SDK for you, you will need to install and enable [the PHP gRPC extension](https://github.com/grpc/grpc/blob/master/src/php/README.md) separately for the SDK to function.
+
+## Installation and Configuration
 
 Add the module with `composer require 'momentohq/drupal-cache:v0.3.2'`. You may need to edit your `composer.json` to set `minimum-stability` to `dev`.
 
-Enable the module in your Drupal administrator interface.
+Enable the `momento_cache` module in your Drupal administrator interface or using `drush en momento_cache`.  
 
 Add the following to your `settings.php` file: 
 
@@ -25,9 +27,12 @@ Replace `<YOUR_CACHE_NAME_PREFIX>` with a string to be prepended to the names of
 
 Replace `<YOUR_LOG_FILE_PATH>` with the path of a file writable by your Drupal server. This logfile is used for logging and timing requests as they are handled by the module. If undefined or empty, no logging is performed.
 
+The example above uses Momento for all Drupal caches. If you prefer to use Momento for specific cache bins, you may assign them individually as well: `$settings['cache']['bins']['render'] = 'cache.backend.momento_cache` 
+
 Finally, add the following to `settings.php`:
 
 ```php
+$class_loader->addPsr4('Drupal\\momento_cache\\', 'modules/contrib/drupal-cache/src');
 $settings['bootstrap_container_definition'] = [
     'parameters'=>[],
     'services' => [
