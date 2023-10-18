@@ -120,7 +120,7 @@ class MomentoCacheBackend implements CacheBackendInterface
             $this->log("SET response error for bin $this->bin: " . $setResponse->asError()->message());
         } else {
             $this->stopStopwatch(
-                $start, "SET cid $cid in bin $this->bin with ttl $ttl (real cid = " .$this->getCidForBin($cid) . ")"
+                $start, "SET cid $cid in bin $this->bin with ttl $ttl"
             );
         }
     }
@@ -261,8 +261,8 @@ class MomentoCacheBackend implements CacheBackendInterface
                 $this->log(
                     "ERROR getting last deletion time for bin $this->bin: " . $getRequest->asError()->message()
                 );
+                $this->setLastBinDeletionTime();
             } elseif ($getRequest->asMiss()) {
-                $this->log("Setting last deletion time for $this->bin");
                 $this->setLastBinDeletionTime();
             } else {
                 $this->lastBinDeletionTime = intval($getRequest->asHit()->valueString());
@@ -277,8 +277,6 @@ class MomentoCacheBackend implements CacheBackendInterface
             $this->log(
                 "ERROR getting last deletion time for bin $this->bin: " . $setRequest->asError()->message()
             );
-        } else {
-            $this->Log("Set last deletion time for $this->bin to $this->lastBinDeletionTime");
         }
     }
 }
