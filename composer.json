@@ -8,6 +8,6 @@
         }
     },
     "require": {
-        "momentohq/client-sdk-php": "dev-add-flush-cache"
+        "momentohq/client-sdk-php": "1.5.0"
     }
 }
