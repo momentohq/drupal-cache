@@ -32,7 +32,7 @@ class MomentoCacheBackendTest extends GenericCacheBackendUnitTestBase {
         $client = $clientFactory->get();
         $deleteResponse = $client->deleteCache($cacheName);
         if ($deleteResponse->asError()) {
-            error_log("Error deleting test cache $cacheName: " . $deleteResponse->asError()->message() . "\n\n\n\n");
+            error_log("Error deleting test cache $cacheName: " . $deleteResponse->asError()->message());
         }
     }
 

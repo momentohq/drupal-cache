@@ -41,36 +41,6 @@ class MomentoCacheBackend implements CacheBackendInterface
         $this->ensureLastBinDeletionTimeIsSet();
     }
 
-    private function ensureLastBinDeletionTimeIsSet() {
-        if (!$this->lastBinDeletionTime) {
-            $getRequest = $this->client->get($this->cacheName, $this->bin);
-            if ($getRequest->asError()) {
-                $this->log(
-                    "ERROR getting last deletion time for bin $this->bin: " .
-                    $getRequest->asError()->message() .
-                    "\nCache name is $this->cacheName"
-                );
-            } elseif ($getRequest->asMiss()) {
-                $this->log("Setting last deletion time for $this->bin");
-                $this->setLastBinDeletionTime();
-            } else {
-                $this->lastBinDeletionTime = intval($getRequest->asHit()->valueString());
-            }
-        }
-    }
-
-    private function setLastBinDeletionTime() {
-        $this->lastBinDeletionTime = round(microtime(TRUE), 3);
-        $setRequest = $this->client->set($this->cacheName, $this->bin, $this->lastBinDeletionTime);
-        if ($setRequest->asError()) {
-            $this->log(
-                "ERROR getting last deletion time for bin $this->bin: " . $setRequest->asError()->message()
-            );
-        } else {
-            $this->Log("Set last deletion time for $this->bin to $this->lastBinDeletionTime");
-        }
-    }
-
     public function get($cid, $allow_invalid = FALSE)
     {
         $cids = [$cid];
@@ -241,8 +211,7 @@ class MomentoCacheBackend implements CacheBackendInterface
     }
 
     private function valid($item) {
-        // TODO: see https://www.drupal.org/project/memcache/issues/3302086 for discussion of why I'm using
-        //  $_SERVER instead of Drupal::time() and potential suggestions on how to inject the latter for use here.
+        // If container isn't initialized yet, use $SERVER's request time value
         try {
             $requestTime = \Drupal::time()->getRequestTime();
         } catch (ContainerNotInitializedException $e) {
@@ -285,4 +254,31 @@ class MomentoCacheBackend implements CacheBackendInterface
         }
     }
 
+    private function ensureLastBinDeletionTimeIsSet() {
+        if (!$this->lastBinDeletionTime) {
+            $getRequest = $this->client->get($this->cacheName, $this->bin);
+            if ($getRequest->asError()) {
+                $this->log(
+                    "ERROR getting last deletion time for bin $this->bin: " . $getRequest->asError()->message()
+                );
+            } elseif ($getRequest->asMiss()) {
+                $this->log("Setting last deletion time for $this->bin");
+                $this->setLastBinDeletionTime();
+            } else {
+                $this->lastBinDeletionTime = intval($getRequest->asHit()->valueString());
+            }
+        }
+    }
+
+    private function setLastBinDeletionTime() {
+        $this->lastBinDeletionTime = round(microtime(TRUE), 3);
+        $setRequest = $this->client->set($this->cacheName, $this->bin, $this->lastBinDeletionTime);
+        if ($setRequest->asError()) {
+            $this->log(
+                "ERROR getting last deletion time for bin $this->bin: " . $setRequest->asError()->message()
+            );
+        } else {
+            $this->Log("Set last deletion time for $this->bin to $this->lastBinDeletionTime");
+        }
+    }
 }
