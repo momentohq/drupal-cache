@@ -5,7 +5,6 @@ namespace Drupal\Tests\momento_cache\Kernel;
 use Drupal\Core\Cache\DatabaseCacheTagsChecksum;
 use Drupal\KernelTests\Core\Cache\GenericCacheBackendUnitTestBase;
 use Drupal\momento_cache\MomentoCacheBackendFactory;
-use Drupal\momento_cache\Client\MomentoClientFactory;
 
 /**
  * Tests the MomentoCacheBackend.
@@ -20,6 +19,22 @@ class MomentoCacheBackendTest extends GenericCacheBackendUnitTestBase {
      * @var array
      */
     protected static $modules = ['system', 'momento_cache'];
+    private $cacheNamePrefix;
+
+    public function setUpCacheBackend() {
+        $this->cacheNamePrefix = $this->cacheNamePrefix ?? uniqid("drupal-cache-test-");
+        putenv("MOMENTO_CACHE_NAME_PREFIX=$this->cacheNamePrefix-");
+    }
+
+    public function tearDownCacheBackend() {
+        $clientFactory = $this->container->get('momento_cache.factory');
+        $cacheName = MomentoCacheBackendFactory::getCacheName();
+        $client = $clientFactory->get();
+        $deleteResponse = $client->deleteCache($cacheName);
+        if ($deleteResponse->asError()) {
+            error_log("Error deleting test cache $cacheName: " . $deleteResponse->asError()->message() . "\n\n\n\n");
+        }
+    }
 
     /**
      * Creates a new instance of MomentoBackend.
