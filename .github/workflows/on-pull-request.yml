@@ -115,9 +115,7 @@ jobs:
         run: |
           php -d sendmail_path=$(which true); vendor/bin/drush --yes -v \
             site-install minimal --db-url="$SIMPLETEST_DB"
-          # vendor/bin/drush pm-list --type=module
           vendor/bin/drush en $DRUPAL_MODULE_NAME -y
-          # find /home/runner/drupal/modules
 
       - name: Run PHPCS
         working-directory: ${{ env.DRUPAL_ROOT }}
