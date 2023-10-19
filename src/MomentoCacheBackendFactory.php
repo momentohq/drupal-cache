@@ -16,14 +16,12 @@ class MomentoCacheBackendFactory implements CacheFactoryInterface {
     private $checksumProvider;
     private $timestampInvalidator;
 
+    private static $cacheName = 'momento-drupal';
     private $client;
     private $caches;
     private $cacheListGoodForSeconds = 3;
     private $cacheListTimespamp;
     private $authProvider;
-    private $cacheNamePrefix;
-    private $tagsCacheId = '_momentoTags';
-    private $tagsCacheName;
     private $backends = [];
 
 
@@ -33,10 +31,14 @@ class MomentoCacheBackendFactory implements CacheFactoryInterface {
     ) {
         $this->momentoFactory = $momento_factory;
         $this->checksumProvider = $checksum_provider;
-        $settings = Settings::get('momento_cache', []);
-        $this->cacheNamePrefix = array_key_exists('cache_name_prefix', $settings) ?
-            $settings['cache_name_prefix'] : "drupal-";
         $this->client = $this->momentoFactory->get();
+    }
+
+    public static function getCacheName() {
+        $settings = Settings::get('momento_cache', []);
+        $cacheNamePrefix = array_key_exists('cache_name_prefix', $settings) ?
+            $settings['cache_name_prefix'] : getenv("MOMENTO_CACHE_NAME_PREFIX");
+        return $cacheNamePrefix . static::$cacheName;
     }
 
     public function get($bin)
@@ -52,7 +54,7 @@ class MomentoCacheBackendFactory implements CacheFactoryInterface {
             $this->populateCacheList();
         }
 
-        $cacheName = $this->cacheNamePrefix . $bin;
+        $cacheName = static::getCacheName();
         if (!in_array($cacheName, $this->caches)) {
             $this->createCache($cacheName);
         }

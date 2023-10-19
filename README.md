@@ -8,7 +8,7 @@ The Momento Cache module uses [Momento's PHP SDK](https://docs.momentohq.com/cac
 
 ## Installation and Configuration
 
-Add the module with `composer require 'momentohq/drupal-cache:v0.3.2'`. You may need to edit your `composer.json` to set `minimum-stability` to `dev`.
+Add the module with `composer require 'momentohq/drupal-cache:v0.4.0'`. You may need to edit your `composer.json` to set `minimum-stability` to `dev`.
 
 Enable the `momento_cache` module in your Drupal administrator interface or using `drush en momento_cache`.  
 
@@ -21,11 +21,11 @@ $settings['momento_cache']['cache_name_prefix'] = '<YOUR_CACHE_NAME_PREFIX>';
 $settings['momento_cache']['logfile'] = '<YOUR_LOG_FILE_PATH>';
 ```
 
-Replace `<YOUR_MOMENTO_TOKEN>` with the token you generated in the console. You may also use an environment variable named `MOMENTO_API_TOKEN` to pass your API token to the Momento cache backend. The module will check for the token in the settings file first and will fall back to the environment variable if a token is not found in the settings.
+Replace `<YOUR_MOMENTO_TOKEN>` with the token you generated in the console. You may also use an environment variable named `MOMENTO_API_TOKEN` to pass your API token to the Momento cache backend. If both are supplied, the settings file takes precedence.
 
-Replace `<YOUR_CACHE_NAME_PREFIX>` with a string to be prepended to the names of the underlying caches. The prefix will prevent cache name collisions when multiple Drupal installs are backed by the same Momento account. If you don't provide a prefix in settings, the prefix "drupal-" is used.
+Replace `<YOUR_CACHE_NAME_PREFIX>` with a string to be prepended to the names of the underlying Momento cache. You may also use an environment variable named `MOMENTO_CACHE_NAME_PREFIX` to pass this value. If both are supplied, the settings file takes precedence. The prefix will prevent cache name collisions when multiple Drupal installs are backed by the same Momento account.
 
-Replace `<YOUR_LOG_FILE_PATH>` with the path of a file writable by your Drupal server. This logfile is used for logging and timing requests as they are handled by the module. If undefined or empty, no logging is performed.
+Replace `<YOUR_LOG_FILE_PATH>` with the path of a file writable by your Drupal server or with `null` if you want to suppress logging. This logfile is used for logging and timing requests as they are handled by the module. Please be aware that this file will grow quickly over time, so if you choose to enable it long-term, you should probably use `logrotate` or some similar utility to keep it from growing out of control.
 
 The example above uses Momento for all Drupal caches. If you prefer to use Momento for specific cache bins, you may assign them individually as well: `$settings['cache']['bins']['render'] = 'cache.backend.momento_cache` 
 

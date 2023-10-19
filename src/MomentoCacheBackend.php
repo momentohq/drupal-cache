@@ -16,6 +16,7 @@ class MomentoCacheBackend implements CacheBackendInterface
     private $backendName = "momento-cache";
     private $bin;
     private $binTag;
+    private $lastBinDeletionTime;
     private $client;
     private $checksumProvider;
     private $MAX_TTL;
@@ -27,7 +28,6 @@ class MomentoCacheBackend implements CacheBackendInterface
         $client,
         CacheTagsChecksumInterface $checksum_provider
     ) {
-        $start = hrtime(true);
         $this->MAX_TTL = intdiv(PHP_INT_MAX, 1000);
         $this->client = $client;
         $this->bin = $bin;
@@ -35,11 +35,10 @@ class MomentoCacheBackend implements CacheBackendInterface
         $this->binTag = "$this->backendName:$this->bin";
 
         $settings = Settings::get('momento_cache', []);
-        $cacheNamePrefix =
-            array_key_exists('cache_name_prefix', $settings) ? $settings['cache_name_prefix'] : "drupal-";
-        $this->cacheName = $cacheNamePrefix . $this->bin;
+        $this->cacheName = MomentoCacheBackendFactory::getCacheName();
         $this->logFile =
             array_key_exists('logfile', $settings) ? $settings['logfile'] : null;
+        $this->ensureLastBinDeletionTimeIsSet();
     }
 
     public function get($cid, $allow_invalid = FALSE)
@@ -49,6 +48,10 @@ class MomentoCacheBackend implements CacheBackendInterface
         return reset($recs);
     }
 
+    private function getCidForBin($cid) {
+        return "$this->bin:$cid";
+    }
+
     public function getMultiple(&$cids, $allow_invalid = FALSE)
     {
         $start = $this->startStopwatch();
@@ -56,13 +59,18 @@ class MomentoCacheBackend implements CacheBackendInterface
         foreach (array_chunk($cids, 100) as $cidChunk) {
             $futures = [];
             foreach ($cidChunk as $cid) {
-                $futures[$cid] = $this->client->getAsync($this->cacheName, $cid);
+                $futures[$cid] = $this->client->getAsync($this->cacheName, $this->getCidForBin($cid));
             }
 
             foreach ($futures as $cid => $future) {
                 $getResponse = $future->wait();
                 if ($getResponse->asHit()) {
                     $result = unserialize($getResponse->asHit()->valueString());
+
+                    if ($result->created <= $this->lastBinDeletionTime) {
+                        continue;
+                    }
+
                     if ($allow_invalid || $this->valid($result)) {
                         $fetched[$cid] = $result;
                     }
@@ -107,11 +115,13 @@ class MomentoCacheBackend implements CacheBackendInterface
         }
         $item->expire = $expire;
 
-        $setResponse = $this->client->set($this->cacheName, $cid, serialize($item), $ttl);
+        $setResponse = $this->client->set($this->cacheName, $this->getCidForBin($cid), serialize($item), $ttl);
         if ($setResponse->asError()) {
             $this->log("SET response error for bin $this->bin: " . $setResponse->asError()->message());
         } else {
-            $this->stopStopwatch($start, "SET cid $cid in bin $this->bin with ttl $ttl");
+            $this->stopStopwatch(
+                $start, "SET cid $cid in bin $this->bin with ttl $ttl"
+            );
         }
     }
 
@@ -130,7 +140,7 @@ class MomentoCacheBackend implements CacheBackendInterface
     public function delete($cid)
     {
         $start = $this->startStopwatch();
-        $deleteResponse = $this->client->delete($this->cacheName, $cid);
+        $deleteResponse = $this->client->delete($this->cacheName, $this->getCidForBin($cid));
         if ($deleteResponse->asError()) {
             $this->log("DELETE response error for $cid in bin $this->bin: " . $deleteResponse->asError()->message());
         } else {
@@ -150,14 +160,8 @@ class MomentoCacheBackend implements CacheBackendInterface
     public function deleteAll()
     {
         $start = $this->startStopwatch();
-        $flushResponse = $this->client->flushCache($this->cacheName);
-        if ($flushResponse->asError()) {
-            $this->log(
-                "FLUSH_CACHE response error for $this->cacheName: " . $flushResponse->asError()->message()
-            );
-        } else {
-            $this->stopStopwatch($start, "FLUSH_CACHE for $this->bin");
-        }
+        $this->setLastBinDeletionTime();
+        $this->stopStopwatch($start, "DELETE_ALL in bin $this->bin");
     }
 
     public function invalidate($cid)
@@ -196,11 +200,8 @@ class MomentoCacheBackend implements CacheBackendInterface
     public function removeBin()
     {
         $start = $this->startStopwatch();
-        $deleteResponse = $this->client->deleteCache($this->cacheName);
-        if ($deleteResponse->asError()) {
-            $this->log("DELETE_CACHE response error for bin $this->cacheName: " . $deleteResponse->asError()->message());
-        }
-        $this->stopStopwatch($start, "REMOVE_BIN for $this->bin");
+        $this->setLastBinDeletionTime();
+        $this->stopStopwatch($start, "REMOVE_BIN $this->bin");
     }
 
     public function garbageCollection()
@@ -210,8 +211,7 @@ class MomentoCacheBackend implements CacheBackendInterface
     }
 
     private function valid($item) {
-        // TODO: see https://www.drupal.org/project/memcache/issues/3302086 for discussion of why I'm using
-        //  $_SERVER instead of Drupal::time() and potential suggestions on how to inject the latter for use here.
+        // If container isn't initialized yet, use $SERVER's request time value
         try {
             $requestTime = \Drupal::time()->getRequestTime();
         } catch (ContainerNotInitializedException $e) {
@@ -254,4 +254,29 @@ class MomentoCacheBackend implements CacheBackendInterface
         }
     }
 
+    private function ensureLastBinDeletionTimeIsSet() {
+        if (!$this->lastBinDeletionTime) {
+            $getRequest = $this->client->get($this->cacheName, $this->bin);
+            if ($getRequest->asError()) {
+                $this->log(
+                    "ERROR getting last deletion time for bin $this->bin: " . $getRequest->asError()->message()
+                );
+                $this->setLastBinDeletionTime();
+            } elseif ($getRequest->asMiss()) {
+                $this->setLastBinDeletionTime();
+            } else {
+                $this->lastBinDeletionTime = intval($getRequest->asHit()->valueString());
+            }
+        }
+    }
+
+    private function setLastBinDeletionTime() {
+        $this->lastBinDeletionTime = round(microtime(TRUE), 3);
+        $setRequest = $this->client->set($this->cacheName, $this->bin, $this->lastBinDeletionTime);
+        if ($setRequest->asError()) {
+            $this->log(
+                "ERROR getting last deletion time for bin $this->bin: " . $setRequest->asError()->message()
+            );
+        }
+    }
 }
