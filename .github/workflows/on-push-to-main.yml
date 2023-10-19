@@ -20,7 +20,7 @@ env:
   MOMENTO_API_TOKEN: ${{ secrets.MOMENTO_API_TOKEN }}
 
 jobs:
-  main:
+  test:
     runs-on: ubuntu-latest
     strategy:
       max-parallel: 1
@@ -168,7 +168,13 @@ jobs:
           vendor/bin/phpunit --bootstrap $DRUPAL_ROOT/core/tests/bootstrap.php \
             -c $MODULE_FOLDER/phpunit.xml $MODULE_FOLDER
 
-#      - name: Generate README
+  publish:
+    runs-on: ubuntu-latest
+    needs: test
+
+    steps:
+
+        #      - name: Generate README
 #        uses: momentohq/standards-and-practices/github-actions/generate-and-commit-oss-readme@gh-actions-v1
 #        with:
 #          project_status: official
