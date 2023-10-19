@@ -6,9 +6,13 @@ A Momento API Token is required. You can generate one using the [Momento Console
 
 The Momento Cache module uses [Momento's PHP SDK](https://docs.momentohq.com/cache/develop/sdks/php) internally. While installing the Drupal module will automatically install the SDK for you, you will need to install and enable [the PHP gRPC extension](https://github.com/grpc/grpc/blob/master/src/php/README.md) separately for the SDK to function.
 
+### Drupal and Momento Rate Limiting
+
+Momento's free tier limits accounts' transactions per second (TPS) and throughput (KiBps), and requests that exceed those limits are throttled. Drupal's usage of the cache backend is significantly higher than the default limits, so it will be necessary to reach out to `support@momentohq.com` to raise your account limits to use Momento Cache as the default Drupal cache backend.
+
 ## Installation and Configuration
 
-Add the module with `composer require 'momentohq/drupal-cache:v0.4.0'`. You may need to edit your `composer.json` to set `minimum-stability` to `dev`.
+Add the module with `composer require 'momentohq/drupal-cache:0.4.0'`.
 
 Enable the `momento_cache` module in your Drupal administrator interface or using `drush en momento_cache`.  
 
@@ -27,7 +31,7 @@ Replace `<YOUR_CACHE_NAME_PREFIX>` with a string to be prepended to the names of
 
 Replace `<YOUR_LOG_FILE_PATH>` with the path of a file writable by your Drupal server or with `null` if you want to suppress logging. This logfile is used for logging and timing requests as they are handled by the module. Please be aware that this file will grow quickly over time, so if you choose to enable it long-term, you should probably use `logrotate` or some similar utility to keep it from growing out of control.
 
-The example above uses Momento for all Drupal caches. If you prefer to use Momento for specific cache bins, you may assign them individually as well: `$settings['cache']['bins']['render'] = 'cache.backend.momento_cache` 
+The example above uses Momento for all Drupal caches. If you prefer to use Momento for specific cache bins, you may assign them individually as well: `$settings['cache']['bins']['render'] = 'cache.backend.momento_cache'`
 
 Finally, add the following to `settings.php`:
 
