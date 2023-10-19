@@ -22,7 +22,7 @@ class MomentoCacheBackendTest extends GenericCacheBackendUnitTestBase {
     private $cacheNamePrefix;
 
     public function setUpCacheBackend() {
-        $this->cacheNamePrefix = $this->cacheNamePrefix ?? uniqid("drupal-cache-test-");
+        $this->cacheNamePrefix = uniqid("drupal-cache-test-");
         putenv("MOMENTO_CACHE_NAME_PREFIX=$this->cacheNamePrefix-");
     }
 
