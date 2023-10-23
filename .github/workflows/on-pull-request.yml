@@ -10,7 +10,6 @@ env:
   MODULE_FOLDER: "drupal-cache"
   MODULE_REPO: "momentohq/drupal-cache"
   DRUPAL_MODULE_NAME: "momento_cache"
-  DRUPAL_CORE_VERSION: 9.4.x
   BRANCH_NAME: ${{ github.head_ref || github.ref_name }}
   MOMENTO_API_TOKEN: ${{ secrets.ALPHA_TEST_AUTH_TOKEN }}
 
@@ -20,7 +19,15 @@ jobs:
     strategy:
       fail-fast: true
       matrix:
-        php-version: ['7.4', '8.0', '8.1']  # , '8.2']
+        php-version: ['7.4', '8.0', '8.1', '8.2']
+        drupal-version: ['9.4.x', '10.1.x']
+        exclude:
+          - php-version: '7.4'
+            drupal-version: '10.1.x'
+          - php-version: '8.0'
+            drupal-version: '10.1.x'
+          - php-version: '8.2'
+            drupal-version: '9.4.x'
 
     services:
       mariadb:
@@ -65,10 +72,9 @@ jobs:
             >> $GITHUB_ENV
 
       # Clone Drupal core into $DRUPAL_ROOT folder.
-      # Core version can be set by changing $DRUPAL_CORE_VERSION.
       - name: Clone drupal
         run: |
-          git clone --depth 1 --branch "$DRUPAL_CORE_VERSION" \
+          git clone --depth 1 --branch "${{ matrix.drupal-version }}" \
             http://git.drupal.org/project/drupal.git/ $DRUPAL_ROOT
 
       # Override the platform.php config with currently active PHP version.
