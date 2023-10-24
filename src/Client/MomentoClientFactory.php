@@ -2,16 +2,12 @@
 
 namespace Drupal\momento_cache\Client;
 
-use Drupal\Core\DependencyInjection\ContainerNotInitializedException;
 use Drupal\Core\Site\Settings;
-use Drupal\Core\Logger\LoggerChannelTrait;
 use Momento\Auth\StringMomentoTokenProvider;
 use Momento\Cache\CacheClient;
 use Momento\Config\Configurations\Laptop;
 
 class MomentoClientFactory {
-
-    use LoggerChannelTrait;
 
     private $authProvider;
     private $cachePrefix;
@@ -26,8 +22,15 @@ class MomentoClientFactory {
     }
 
     public function get() {
+        $config = Laptop::latest();
+        $config = $config->withTransportStrategy(
+            $config->getTransportStrategy()->withGrpcConfig(
+                $config->getTransportStrategy()->getGrpcConfig()->withForceNewChannel(true)
+            )
+        );
+
         if (!$this->client) {
-            $this->client = new CacheClient(Laptop::latest(), $this->authProvider, 30);
+            $this->client = new CacheClient($config, $this->authProvider, 30);
         }
         return $this->client;
     }
