@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.4.1](https://github.com/momentohq/drupal-cache/compare/v0.4.0...v0.4.1) (2023-10-24)
+
+
+### Bug Fixes
+
+* set grpc config to force new channel ([#13](https://github.com/momentohq/drupal-cache/issues/13)) ([8af3ce6](https://github.com/momentohq/drupal-cache/commit/8af3ce6815da8033c7f3902389ac07773d8cd95a))
+
+
+### Miscellaneous
+
+* extend versions under test ([#11](https://github.com/momentohq/drupal-cache/issues/11)) ([1ab6110](https://github.com/momentohq/drupal-cache/commit/1ab6110dd4c534f3c18c4ce9164584857e422335))
+
 ## [0.4.0](https://github.com/momentohq/drupal-cache/compare/v0.3.2...v0.4.0) (2023-10-20)
 
 
