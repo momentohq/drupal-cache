@@ -8,7 +8,7 @@ The Momento Cache module uses [Momento's PHP SDK](https://docs.momentohq.com/cac
 
 ### Drupal and Momento Rate Limiting
 
-Momento's free tier limits accounts' transactions per second (TPS) and throughput (KiBps), and requests that exceed those limits are throttled. Drupal's usage of the cache backend is significantly higher than the default limits, so prior to using the integration please reach out to `support@momentohq.com` to raise your account limits. You can check the logfile you configure in the settings (instructions below) for rate limiting error messages.
+Momento's free tier limits accounts' transactions per second (TPS) and throughput (KiBps), and requests that exceed those limits are throttled. Drupal's usage of the cache backend is significantly higher than the default limits, so prior to using the integration please reach out to `support@momentohq.com` to raise your account limits. For a site with low to moderate traffic, we recommend limits of 200 TPS and 81920 KiBps. Also let us know if your cache items will exceed 1024 KiB. You can check the logfile you configure in the settings (instructions below) for rate limiting error messages.
 
 ## Installation and Configuration
 
