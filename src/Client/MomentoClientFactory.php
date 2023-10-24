@@ -2,15 +2,12 @@
 
 namespace Drupal\momento_cache\Client;
 
-use Drupal\Core\Logger\LoggerChannelTrait;
 use Drupal\Core\Site\Settings;
 use Momento\Auth\StringMomentoTokenProvider;
 use Momento\Cache\CacheClient;
 use Momento\Config\Configurations\Laptop;
 
 class MomentoClientFactory {
-
-    use LoggerChannelTrait;
 
     private $authProvider;
     private $cachePrefix;
