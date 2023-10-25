@@ -51,6 +51,7 @@ class MomentoCacheBackendFactory implements CacheFactoryInterface {
             ! $this->caches
             || ($this->cacheListTimespamp && time() - $this->cacheListTimespamp > $this->cacheListGoodForSeconds)
         ) {
+            error_log("backend for $bin populating cache list");
             $this->populateCacheList();
         }
 
