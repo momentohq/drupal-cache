@@ -14,16 +14,10 @@ class MomentoCacheBackendFactory implements CacheFactoryInterface {
 
     private $momentoFactory;
     private $checksumProvider;
-    private $timestampInvalidator;
 
-    private static $cacheName = 'momento-drupal';
+    private static $cacheName;
     private $client;
-    private $caches;
-    private $cacheListGoodForSeconds = 3;
-    private $cacheListTimespamp;
-    private $authProvider;
     private $backends = [];
-
 
     public function __construct(
         MomentoClientFactory $momento_factory,
@@ -32,31 +26,19 @@ class MomentoCacheBackendFactory implements CacheFactoryInterface {
         $this->momentoFactory = $momento_factory;
         $this->checksumProvider = $checksum_provider;
         $this->client = $this->momentoFactory->get();
+        $settings = Settings::get('momento_cache', []);
+        static::$cacheName = array_key_exists('cache_name', $settings) ?
+            $settings['cache_name'] : getenv("MOMENTO_CACHE_NAME");
     }
 
     public static function getCacheName() {
-        $settings = Settings::get('momento_cache', []);
-        $cacheNamePrefix = array_key_exists('cache_name_prefix', $settings) ?
-            $settings['cache_name_prefix'] : getenv("MOMENTO_CACHE_NAME_PREFIX");
-        return $cacheNamePrefix . static::$cacheName;
+        return static::$cacheName ?? '';
     }
 
     public function get($bin)
     {
         if (array_key_exists($bin, $this->backends)) {
             return $this->backends[$bin];
-        }
-
-        if (
-            ! $this->caches
-            || ($this->cacheListTimespamp && time() - $this->cacheListTimespamp > $this->cacheListGoodForSeconds)
-        ) {
-            $this->populateCacheList();
-        }
-
-        $cacheName = static::getCacheName();
-        if (!in_array($cacheName, $this->caches)) {
-            $this->createCache($cacheName);
         }
         $backend = new MomentoCacheBackend(
             $bin,
@@ -65,27 +47,5 @@ class MomentoCacheBackendFactory implements CacheFactoryInterface {
         );
         $this->backends[$bin] = $backend;
         return $backend;
-    }
-
-    private function populateCacheList() {
-        $this->caches = [];
-        $this->cacheListTimespamp = time();
-        $listResponse = $this->client->listCaches();
-        if ($listResponse->asSuccess()) {
-            foreach ($listResponse->asSuccess()->caches() as $cache) {
-                $this->caches[] = $cache->name();
-            }
-        }
-    }
-
-    private function createCache($cacheName) {
-        $createResponse = $this->client->createCache($cacheName);
-        if ($createResponse->asError()) {
-            $this->getLogger('momento_cache')->error(
-                "Error creating cache $cacheName : " . $createResponse->asError()->message()
-            );
-        } elseif ($createResponse->asSuccess()) {
-            $this->getLogger('momento_cache')->info("Created cache $cacheName");
-        }
     }
 }
