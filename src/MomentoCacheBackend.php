@@ -5,7 +5,6 @@ namespace Drupal\momento_cache;
 use Drupal\Core\Cache\CacheBackendInterface;
 use Drupal\Core\Cache\CacheTagsChecksumInterface;
 use Drupal\Core\Cache\CacheTagsInvalidatorInterface;
-use Drupal\Core\DependencyInjection\ContainerNotInitializedException;
 use Drupal\Core\Logger\LoggerChannelTrait;
 use Drupal\Core\Site\Settings;
 use Drupal\Component\Assertion\Inspector;
@@ -237,19 +236,8 @@ class MomentoCacheBackend implements CacheBackendInterface
     }
 
     private function log(string $message, bool $logToDblog = false) {
-        // TODO: suppressing this error until I have some time to do a deep dive into the Drupal
-        //  container initialization system. Until then, this doesn't affect caching so I'm just
-        //  swallowing it to avoid log clutter and user confusion.
-        if ($this->bin == 'container') {
-            return;
-        }
-
         if ($logToDblog) {
-            try {
-                $this->getLogger('momento_cache')->error($message);
-            } catch (ContainerNotInitializedException $e) {
-                error_log($message);
-            }
+            $this->getLogger('momento_cache')->error($message);
         }
 
         if (!$this->logFile) {
