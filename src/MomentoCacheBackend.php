@@ -4,14 +4,16 @@ namespace Drupal\momento_cache;
 
 use Drupal\Core\Cache\CacheBackendInterface;
 use Drupal\Core\Cache\CacheTagsChecksumInterface;
+use Drupal\Core\Cache\CacheTagsInvalidatorInterface;
 use Drupal\Core\DependencyInjection\ContainerNotInitializedException;
+use Drupal\Core\Logger\LoggerChannelTrait;
 use Drupal\Core\Site\Settings;
 use Drupal\Component\Assertion\Inspector;
-use Drupal\Component\Serialization\SerializationInterface;
-use Drupal\Core\Cache\CacheTagsInvalidatorInterface;
 
 class MomentoCacheBackend implements CacheBackendInterface
 {
+
+    use LoggerChannelTrait;
 
     private $backendName = "momento-cache";
     private $bin;
@@ -76,7 +78,8 @@ class MomentoCacheBackend implements CacheBackendInterface
                     }
                 } elseif ($getResponse->asError()) {
                     $this->log(
-                        "GET error for cid $cid in bin $this->bin: " . $getResponse->asError()->message()
+                        "GET error for cid $cid in bin $this->bin: " . $getResponse->asError()->message(),
+                        true
                     );
                 }
             }
@@ -117,7 +120,7 @@ class MomentoCacheBackend implements CacheBackendInterface
 
         $setResponse = $this->client->set($this->cacheName, $this->getCidForBin($cid), serialize($item), $ttl);
         if ($setResponse->asError()) {
-            $this->log("SET response error for bin $this->bin: " . $setResponse->asError()->message());
+            $this->log("SET response error for bin $this->bin: " . $setResponse->asError()->message(), true);
         } else {
             $this->stopStopwatch(
                 $start, "SET cid $cid in bin $this->bin with ttl $ttl"
@@ -142,7 +145,10 @@ class MomentoCacheBackend implements CacheBackendInterface
         $start = $this->startStopwatch();
         $deleteResponse = $this->client->delete($this->cacheName, $this->getCidForBin($cid));
         if ($deleteResponse->asError()) {
-            $this->log("DELETE response error for $cid in bin $this->bin: " . $deleteResponse->asError()->message());
+            $this->log(
+                "DELETE response error for $cid in bin $this->bin: " . $deleteResponse->asError()->message(),
+                true
+            );
         } else {
             $this->stopStopwatch($start, "DELETE cid $cid from bin $this->bin");
         }
@@ -230,10 +236,26 @@ class MomentoCacheBackend implements CacheBackendInterface
         return $isValid;
     }
 
-    private function log(string $message) {
+    private function log(string $message, bool $logToDblog = false) {
+        // TODO: suppressing this error until I have some time to do a deep dive into the Drupal
+        //  container initialization system. Until then, this doesn't affect caching so I'm just
+        //  swallowing it to avoid log clutter and user confusion.
+        if ($this->bin == 'container') {
+            return;
+        }
+
+        if ($logToDblog) {
+            try {
+                $this->getLogger('momento_cache')->error($message);
+            } catch (ContainerNotInitializedException $e) {
+                error_log($message);
+            }
+        }
+
         if (!$this->logFile) {
             return;
         }
+
         if ($message[-1] != "\n") {
             $message .= "\n";
         }

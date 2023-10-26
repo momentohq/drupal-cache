@@ -19,20 +19,25 @@ class MomentoCacheBackendTest extends GenericCacheBackendUnitTestBase {
      * @var array
      */
     protected static $modules = ['system', 'momento_cache'];
-    private $cacheNamePrefix;
+    private $cacheName;
 
     public function setUpCacheBackend() {
-        $this->cacheNamePrefix = uniqid("drupal-cache-test-");
-        putenv("MOMENTO_CACHE_NAME_PREFIX=$this->cacheNamePrefix-");
+        $this->cacheName = uniqid("drupal-cache-test-");
+        putenv("MOMENTO_CACHE_NAME=$this->cacheName");
+        $clientFactory = $this->container->get('momento_cache.factory');
+        $client = $clientFactory->get();
+        $createResponse = $client->createCache($this->cacheName);
+        if ($createResponse->asError()) {
+            throw new \Exception("Failed to create cache $this->cacheName: " . $createResponse->asError()->message());
+        }
     }
 
     public function tearDownCacheBackend() {
         $clientFactory = $this->container->get('momento_cache.factory');
-        $cacheName = MomentoCacheBackendFactory::getCacheName();
         $client = $clientFactory->get();
-        $deleteResponse = $client->deleteCache($cacheName);
+        $deleteResponse = $client->deleteCache($this->cacheName);
         if ($deleteResponse->asError()) {
-            error_log("Error deleting test cache $cacheName: " . $deleteResponse->asError()->message());
+            throw new \Exception("Error deleting test cache $this->cacheName: " . $deleteResponse->asError()->message());
         }
     }
 
