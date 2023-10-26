@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.5.0](https://github.com/momentohq/drupal-cache/compare/v0.4.1...v0.5.0) (2023-10-26)
+
+
+### Features
+
+* specify cache name in settings instead of prefix ([#16](https://github.com/momentohq/drupal-cache/issues/16)) ([df96e79](https://github.com/momentohq/drupal-cache/commit/df96e79b0999f981aea4f7fd3d17fb0b748f8474))
+
+
+### Miscellaneous
+
+* removing container bootstrap definition from settings ([#18](https://github.com/momentohq/drupal-cache/issues/18)) ([b0d6500](https://github.com/momentohq/drupal-cache/commit/b0d65006513c6d0dc04ab507207e883211362854))
+
 ## [0.4.1](https://github.com/momentohq/drupal-cache/compare/v0.4.0...v0.4.1) (2023-10-24)
 
 
