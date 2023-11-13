@@ -247,7 +247,8 @@ class MomentoCacheBackend implements CacheBackendInterface
         if ($message[-1] != "\n") {
             $message .= "\n";
         }
-        error_log($message, 3, $this->logFile);
+        $mt = microtime(true);
+        error_log("[$mt] $message", 3, $this->logFile);
     }
 
     private function startStopwatch() {
