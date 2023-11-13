@@ -129,6 +129,7 @@ class MomentoCacheBackend implements CacheBackendInterface
 
     public function setMultiple(array $items)
     {
+        $this->log("SET_MUTLIPLE received " . count($items) . " items");
         foreach ($items as $cid => $item) {
             $this->set(
                 $cid,
