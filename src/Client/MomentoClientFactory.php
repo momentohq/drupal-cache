@@ -25,7 +25,7 @@ class MomentoClientFactory {
         $config = Laptop::latest();
         $config = $config->withTransportStrategy(
             $config->getTransportStrategy()->withGrpcConfig(
-                $config->getTransportStrategy()->getGrpcConfig()->withForceNewChannel(true)
+                $config->getTransportStrategy()->getGrpcConfig()->withForceNewChannel(false)
             )
         );
 
