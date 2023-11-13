@@ -13,11 +13,14 @@ class MomentoClientFactory {
     private $cachePrefix;
     private $client;
     private $containerCacheCreated = false;
+    private $forceNewChannel;
 
     public function __construct() {
         $settings = Settings::get('momento_cache', []);
         $authToken = array_key_exists('api_token', $settings) ?
             $settings['api_token'] : getenv("MOMENTO_API_TOKEN");
+        $this->forceNewChannel = array_key_exists('force_new_channel', $settings) ?
+            $settings['force_new_channel'] : true;
         $this->authProvider = new StringMomentoTokenProvider($authToken);
     }
 
@@ -25,7 +28,7 @@ class MomentoClientFactory {
         $config = Laptop::latest();
         $config = $config->withTransportStrategy(
             $config->getTransportStrategy()->withGrpcConfig(
-                $config->getTransportStrategy()->getGrpcConfig()->withForceNewChannel(true)
+                $config->getTransportStrategy()->getGrpcConfig()->withForceNewChannel($this->forceNewChannel)
             )
         );
 
