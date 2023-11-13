@@ -92,30 +92,9 @@ class MomentoCacheBackend implements CacheBackendInterface
     {
         $start = $this->startStopwatch();
         assert(Inspector::assertAllStrings($tags));
-
-        // Add tag for invalidateAll()
-        $tags[] = $this->binTag;
-        $tags = array_unique($tags);
-        sort($tags);
-
-        $ttl = $this->MAX_TTL;
-        $item = new \stdClass();
-        $item->cid = $cid;
-        $item->tags = $tags;
-        $item->data = $data;
-        $item->created = round(microtime(TRUE), 3);
-        $item->valid = TRUE;
-        $item->checksum = $this->checksumProvider->getCurrentChecksum($tags);
-
-        $requestTime = \Drupal::time()->getRequestTime();
-        if ($expire != CacheBackendInterface::CACHE_PERMANENT) {
-            if ($expire < $requestTime) {
-                $item->valid = FALSE;
-            } else {
-                $ttl = $expire - $requestTime;
-            }
-        }
-        $item->expire = $expire;
+        $item = $this->processItemForSet($cid, $data, $expire, $tags);
+        $ttl = $item->ttl;
+        unset($item->ttl);
 
         $setResponse = $this->client->set($this->cacheName, $this->getCidForBin($cid), serialize($item), $ttl);
         if ($setResponse->asError()) {
@@ -129,15 +108,35 @@ class MomentoCacheBackend implements CacheBackendInterface
 
     public function setMultiple(array $items)
     {
-        $this->log("SET_MUTLIPLE received " . count($items) . " items");
+        $start = $this->startStopwatch();
+        $futures = [];
         foreach ($items as $cid => $item) {
-            $this->set(
+            $item = $this->processItemForSet(
                 $cid,
                 $item['data'],
                 $item['expire'] ?? CacheBackendInterface::CACHE_PERMANENT,
                 $item['tags'] ?? []
             );
+            $ttl = $item->ttl;
+            unset($item->ttl);
+            $futures[] = $this->client->setAsync(
+                $this->cacheName,
+                $this->getCidForBin($cid),
+                serialize($item),
+                $ttl
+            );
         }
+
+        foreach ($futures as $future) {
+            $setResponse = $future->wait();
+            if ($setResponse->asError()) {
+                $this->log(
+                    "SET_MULTIPLE response error for bin $this->bin: " . $setResponse->asError()->message(),
+                    true
+                );
+            }
+        }
+        $this->stopStopwatch($start, "SET_MULTIPLE in bin $this->bin for " . count($items) . " items");
     }
 
     public function delete($cid)
@@ -214,6 +213,35 @@ class MomentoCacheBackend implements CacheBackendInterface
     {
         // Momento will invalidate items; That item's memory allocation is then
         // freed up and reused. So nothing needs to be deleted/cleaned up here.
+    }
+
+    private function processItemForSet($cid, $data, $expire = CacheBackendInterface::CACHE_PERMANENT, array $tags = [])
+    {
+        // Add tag for invalidateAll()
+        $tags[] = $this->binTag;
+        $tags = array_unique($tags);
+        sort($tags);
+
+        $ttl = $this->MAX_TTL;
+        $item = new \stdClass();
+        $item->cid = $cid;
+        $item->tags = $tags;
+        $item->data = $data;
+        $item->created = round(microtime(TRUE), 3);
+        $item->valid = TRUE;
+        $item->checksum = $this->checksumProvider->getCurrentChecksum($tags);
+
+        $requestTime = \Drupal::time()->getRequestTime();
+        if ($expire != CacheBackendInterface::CACHE_PERMANENT) {
+            if ($expire < $requestTime) {
+                $item->valid = FALSE;
+            } else {
+                $ttl = $expire - $requestTime;
+            }
+        }
+        $item->expire = $expire;
+        $item->ttl = $ttl;
+        return $item;
     }
 
     private function valid($item) {
