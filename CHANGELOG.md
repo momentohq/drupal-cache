@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.5.1](https://github.com/momentohq/drupal-cache/compare/v0.5.0...v0.5.1) (2023-11-10)
+
+
+### Bug Fixes
+
+* fix the default limits README section ([#19](https://github.com/momentohq/drupal-cache/issues/19)) ([8c23672](https://github.com/momentohq/drupal-cache/commit/8c236722d5f657fbdd66f44c28f00b1fa99bb494))
+
 ## [0.5.0](https://github.com/momentohq/drupal-cache/compare/v0.4.1...v0.5.0) (2023-10-26)
 
 
