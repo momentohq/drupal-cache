@@ -10,10 +10,9 @@ use Momento\Config\Configurations\Laptop;
 class MomentoClientFactory {
 
     private $authProvider;
-    private $cachePrefix;
     private $client;
-    private $containerCacheCreated = false;
     private $forceNewChannel;
+    private $logFile;
 
     public function __construct() {
         $settings = Settings::get('momento_cache', []);
@@ -22,9 +21,12 @@ class MomentoClientFactory {
         $this->forceNewChannel = array_key_exists('force_new_channel', $settings) ?
             $settings['force_new_channel'] : true;
         $this->authProvider = new StringMomentoTokenProvider($authToken);
+        $this->logFile =
+            array_key_exists('logfile', $settings) ? $settings['logfile'] : null;
     }
 
     public function get() {
+        $start = hrtime(true);
         $config = Laptop::latest();
         $config = $config->withTransportStrategy(
             $config->getTransportStrategy()->withGrpcConfig(
@@ -34,6 +36,11 @@ class MomentoClientFactory {
 
         if (!$this->client) {
             $this->client = new CacheClient($config, $this->authProvider, 30);
+        }
+        if ($this->logFile) {
+            $totalTimeMs = (hrtime(true) - $start) / 1e6;
+            $mt = microtime(true);
+            @error_log("[$mt] Instantiated cache client [$totalTimeMs ms]\n", 3, $this->logFile);
         }
         return $this->client;
     }
