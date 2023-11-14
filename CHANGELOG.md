@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.5.2](https://github.com/momentohq/drupal-cache/compare/v0.5.1...v0.5.2) (2023-11-14)
+
+
+### Miscellaneous
+
+* logging and set_multiple operation improvements ([#23](https://github.com/momentohq/drupal-cache/issues/23)) ([fe1513a](https://github.com/momentohq/drupal-cache/commit/fe1513a8573880d255da9bf21cae52d6e464373d))
+
 ## [0.5.1](https://github.com/momentohq/drupal-cache/compare/v0.5.0...v0.5.1) (2023-11-10)
 
 
