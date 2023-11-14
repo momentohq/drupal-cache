@@ -91,7 +91,6 @@ class MomentoCacheBackend implements CacheBackendInterface
     public function set($cid, $data, $expire = CacheBackendInterface::CACHE_PERMANENT, array $tags = [])
     {
         $start = $this->startStopwatch();
-        assert(Inspector::assertAllStrings($tags));
         $item = $this->processItemForSet($cid, $data, $expire, $tags);
         $ttl = $item->ttl;
         unset($item->ttl);
@@ -217,6 +216,8 @@ class MomentoCacheBackend implements CacheBackendInterface
 
     private function processItemForSet($cid, $data, $expire = CacheBackendInterface::CACHE_PERMANENT, array $tags = [])
     {
+        assert(Inspector::assertAllStrings($tags));
+
         // Add tag for invalidateAll()
         $tags[] = $this->binTag;
         $tags = array_unique($tags);
@@ -277,7 +278,7 @@ class MomentoCacheBackend implements CacheBackendInterface
             $message .= "\n";
         }
         $mt = microtime(true);
-        error_log("[$mt] $message", 3, $this->logFile);
+        @error_log("[$mt] $message", 3, $this->logFile);
     }
 
     private function startStopwatch() {

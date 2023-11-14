@@ -40,7 +40,7 @@ class MomentoClientFactory {
         if ($this->logFile) {
             $totalTimeMs = (hrtime(true) - $start) / 1e6;
             $mt = microtime(true);
-            error_log("[$mt] Instantiated cache client [$totalTimeMs ms]\n", 3, $this->logFile);
+            @error_log("[$mt] Instantiated cache client [$totalTimeMs ms]\n", 3, $this->logFile);
         }
         return $this->client;
     }
