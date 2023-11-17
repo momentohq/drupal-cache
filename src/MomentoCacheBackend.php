@@ -112,7 +112,7 @@ class MomentoCacheBackend implements CacheBackendInterface
     {
         $start = $this->startStopwatch();
         $futures = [];
-        foreach (array_chunk($items, $this->batchSize) as $itemChunk) {
+        foreach (array_chunk($items, $this->batchSize, true) as $itemChunk) {
             foreach ($itemChunk as $cid => $item) {
                 $item = $this->processItemForSet(
                     $cid,
