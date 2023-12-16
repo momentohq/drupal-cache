@@ -59,6 +59,7 @@ class MomentoCacheBackend implements CacheBackendInterface
     public function getMultiple(&$cids, $allow_invalid = FALSE)
     {
         $start = $this->startStopwatch();
+        $numRequested = count($cids);
         $fetched = [];
         foreach (array_chunk($cids, $this->batchSize) as $cidChunk) {
             $futures = [];
@@ -87,7 +88,7 @@ class MomentoCacheBackend implements CacheBackendInterface
             }
         }
         $cids = array_diff($cids, array_keys($fetched));
-        $this->stopStopwatch($start, "GET_MULTIPLE got " . count($fetched) . " items");
+        $this->stopStopwatch($start, "GET_MULTIPLE got " . count($fetched) . " items of $numRequested requested");
         return $fetched;
     }
 
