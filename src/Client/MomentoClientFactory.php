@@ -11,6 +11,7 @@ class MomentoClientFactory {
 
     private $authProvider;
     private $client;
+    private $clientTimeoutMsec;
     private $forceNewChannel;
     private $numGrpcChannels;
     private $logFile;
@@ -26,6 +27,8 @@ class MomentoClientFactory {
             array_key_exists('logfile', $settings) ? $settings['logfile'] : null;
         $this->numGrpcChannels =
             array_key_exists('num_grpc_channels', $settings) ? $settings['num_grpc_channels'] : 1;
+        $this->clientTimeoutMsec =
+            array_key_exists('client_timeout_msec', $settings) ? $settings['client_timeout_msec'] : 15000;
     }
 
     public function get() {
@@ -42,7 +45,7 @@ class MomentoClientFactory {
                     ->withForceNewChannel($this->forceNewChannel)
                     ->withNumGrpcChannels($this->numGrpcChannels)
             )
-        );
+        )->withClientTimeout($this->clientTimeoutMsec);
         $this->client = new CacheClient($config, $this->authProvider, 30);
         if ($this->logFile) {
             $totalTimeMs = (hrtime(true) - $start) / 1e6;
