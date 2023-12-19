@@ -272,9 +272,9 @@ class MomentoCacheBackend implements CacheBackendInterface
     }
 
     private function log(string $message, bool $logToDblog = false) {
-        if ($logToDblog) {
-            $this->getLogger('momento_cache')->error($message);
-        }
+//        if ($logToDblog) {
+//            $this->getLogger('momento_cache')->error($message);
+//        }
 
         if (!$this->logFile) {
             return;
