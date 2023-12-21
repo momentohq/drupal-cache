@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.5.3](https://github.com/momentohq/drupal-cache/compare/v0.5.2...v0.5.3) (2023-12-21)
+
+
+### Bug Fixes
+
+* update module version in installation instructions ([#26](https://github.com/momentohq/drupal-cache/issues/26)) ([e40256c](https://github.com/momentohq/drupal-cache/commit/e40256c1ca85df71c7723b7a1d5be13abf0ad615))
+
 ## [0.5.2](https://github.com/momentohq/drupal-cache/compare/v0.5.1...v0.5.2) (2023-11-14)
 
 
