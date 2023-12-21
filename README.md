@@ -14,7 +14,7 @@ Momento's free tier limits accounts' transactions per second (TPS) and throughpu
 
 ## Installation and Configuration
 
-Add the module with `composer require 'momentohq/drupal-cache:0.5.0'`.
+Add the module with `composer require 'momentohq/drupal-cache:0.5.2'`.
 
 Enable the `momento_cache` module in your Drupal administrator interface or using `drush en momento_cache`.  
 
