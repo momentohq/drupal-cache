@@ -61,6 +61,8 @@ class MomentoCacheBackend implements CacheBackendInterface
         $start = $this->startStopwatch();
         $numRequested = count($cids);
         $fetched = [];
+        $fetched_bytes = 0;
+
         foreach (array_chunk($cids, $this->batchSize) as $cidChunk) {
             $futures = [];
             foreach ($cidChunk as $cid) {
@@ -70,6 +72,7 @@ class MomentoCacheBackend implements CacheBackendInterface
             foreach ($futures as $cid => $future) {
                 $getResponse = $future->wait();
                 if ($getResponse->asHit()) {
+                    $fetched_bytes += strlen($getResponse->asHit()->valueString());
                     $result = unserialize($getResponse->asHit()->valueString());
 
                     if ($result->created <= $this->lastBinDeletionTime) {
@@ -88,7 +91,10 @@ class MomentoCacheBackend implements CacheBackendInterface
             }
         }
         $cids = array_diff($cids, array_keys($fetched));
-        $this->stopStopwatch($start, "GET_MULTIPLE got " . count($fetched) . " items of $numRequested requested");
+        $this->stopStopwatch(
+            $start,
+            "GET_MULTIPLE got " . count($fetched) . " items of $numRequested requested for $fetched_bytes bytes"
+        );
         return $fetched;
     }
 
@@ -98,13 +104,15 @@ class MomentoCacheBackend implements CacheBackendInterface
         $item = $this->processItemForSet($cid, $data, $expire, $tags);
         $ttl = $item->ttl;
         unset($item->ttl);
+        $serialized_item = serialize($item);
 
-        $setResponse = $this->client->set($this->cacheName, $this->getCidForBin($cid), serialize($item), $ttl);
+
+        $setResponse = $this->client->set($this->cacheName, $this->getCidForBin($cid), $serialized_item, $ttl);
         if ($setResponse->asError()) {
             $this->log("SET response error for bin $this->bin: " . $setResponse->asError()->message(), true);
         } else {
             $this->stopStopwatch(
-                $start, "SET cid $cid in bin $this->bin with ttl $ttl"
+                $start, "SET cid $cid in bin $this->bin with ttl $ttl and " . strlen($serialized_item) . " bytes"
             );
         }
     }
@@ -113,6 +121,8 @@ class MomentoCacheBackend implements CacheBackendInterface
     {
         $start = $this->startStopwatch();
         $futures = [];
+        $bytes_set = 0;
+
         foreach (array_chunk($items, $this->batchSize, true) as $itemChunk) {
             foreach ($itemChunk as $cid => $item) {
                 $item = $this->processItemForSet(
@@ -123,10 +133,12 @@ class MomentoCacheBackend implements CacheBackendInterface
                 );
                 $ttl = $item->ttl;
                 unset($item->ttl);
+                $serialized_item = serialize($item);
+                $bytes_set += strlen($serialized_item);
                 $futures[] = $this->client->setAsync(
                     $this->cacheName,
                     $this->getCidForBin($cid),
-                    serialize($item),
+                    $serialized_item,
                     $ttl
                 );
             }
@@ -141,7 +153,7 @@ class MomentoCacheBackend implements CacheBackendInterface
                 }
             }
         }
-        $this->stopStopwatch($start, "SET_MULTIPLE in bin $this->bin for " . count($items) . " items");
+        $this->stopStopwatch($start, "SET_MULTIPLE in bin $this->bin for " . count($items) . " items and $bytes_set bytes");
     }
 
     public function delete($cid)
