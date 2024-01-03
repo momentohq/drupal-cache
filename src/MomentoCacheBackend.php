@@ -23,6 +23,7 @@ class MomentoCacheBackend implements CacheBackendInterface
     private $MAX_TTL;
     private $cacheName;
     private $logFile;
+    private $batchSize;
 
     public function __construct(
         $bin,
@@ -39,6 +40,8 @@ class MomentoCacheBackend implements CacheBackendInterface
         $this->cacheName = MomentoCacheBackendFactory::getCacheName();
         $this->logFile =
             array_key_exists('logfile', $settings) ? $settings['logfile'] : null;
+        $this->batchSize =
+            array_key_exists('batch_size', $settings) ? $settings['batch_size'] : 50;
         $this->ensureLastBinDeletionTimeIsSet();
     }
 
@@ -56,8 +59,11 @@ class MomentoCacheBackend implements CacheBackendInterface
     public function getMultiple(&$cids, $allow_invalid = FALSE)
     {
         $start = $this->startStopwatch();
+        $numRequested = count($cids);
         $fetched = [];
-        foreach (array_chunk($cids, 100) as $cidChunk) {
+        $fetched_bytes = 0;
+
+        foreach (array_chunk($cids, $this->batchSize) as $cidChunk) {
             $futures = [];
             foreach ($cidChunk as $cid) {
                 $futures[$cid] = $this->client->getAsync($this->cacheName, $this->getCidForBin($cid));
@@ -66,6 +72,7 @@ class MomentoCacheBackend implements CacheBackendInterface
             foreach ($futures as $cid => $future) {
                 $getResponse = $future->wait();
                 if ($getResponse->asHit()) {
+                    $fetched_bytes += strlen($getResponse->asHit()->valueString());
                     $result = unserialize($getResponse->asHit()->valueString());
 
                     if ($result->created <= $this->lastBinDeletionTime) {
@@ -84,7 +91,10 @@ class MomentoCacheBackend implements CacheBackendInterface
             }
         }
         $cids = array_diff($cids, array_keys($fetched));
-        $this->stopStopwatch($start, "GET_MULTIPLE got " . count($fetched) . " items");
+        $this->stopStopwatch(
+            $start,
+            "GET_MULTIPLE got " . count($fetched) . " items of $numRequested requested for $fetched_bytes bytes"
+        );
         return $fetched;
     }
 
@@ -94,13 +104,15 @@ class MomentoCacheBackend implements CacheBackendInterface
         $item = $this->processItemForSet($cid, $data, $expire, $tags);
         $ttl = $item->ttl;
         unset($item->ttl);
+        $serialized_item = serialize($item);
 
-        $setResponse = $this->client->set($this->cacheName, $this->getCidForBin($cid), serialize($item), $ttl);
+
+        $setResponse = $this->client->set($this->cacheName, $this->getCidForBin($cid), $serialized_item, $ttl);
         if ($setResponse->asError()) {
             $this->log("SET response error for bin $this->bin: " . $setResponse->asError()->message(), true);
         } else {
             $this->stopStopwatch(
-                $start, "SET cid $cid in bin $this->bin with ttl $ttl"
+                $start, "SET cid $cid in bin $this->bin with ttl $ttl and " . strlen($serialized_item) . " bytes"
             );
         }
     }
@@ -109,33 +121,39 @@ class MomentoCacheBackend implements CacheBackendInterface
     {
         $start = $this->startStopwatch();
         $futures = [];
-        foreach ($items as $cid => $item) {
-            $item = $this->processItemForSet(
-                $cid,
-                $item['data'],
-                $item['expire'] ?? CacheBackendInterface::CACHE_PERMANENT,
-                $item['tags'] ?? []
-            );
-            $ttl = $item->ttl;
-            unset($item->ttl);
-            $futures[] = $this->client->setAsync(
-                $this->cacheName,
-                $this->getCidForBin($cid),
-                serialize($item),
-                $ttl
-            );
-        }
+        $bytes_set = 0;
 
-        foreach ($futures as $future) {
-            $setResponse = $future->wait();
-            if ($setResponse->asError()) {
-                $this->log(
-                    "SET_MULTIPLE response error for bin $this->bin: " . $setResponse->asError()->message(),
-                    true
+        foreach (array_chunk($items, $this->batchSize, true) as $itemChunk) {
+            foreach ($itemChunk as $cid => $item) {
+                $item = $this->processItemForSet(
+                    $cid,
+                    $item['data'],
+                    $item['expire'] ?? CacheBackendInterface::CACHE_PERMANENT,
+                    $item['tags'] ?? []
+                );
+                $ttl = $item->ttl;
+                unset($item->ttl);
+                $serialized_item = serialize($item);
+                $bytes_set += strlen($serialized_item);
+                $futures[] = $this->client->setAsync(
+                    $this->cacheName,
+                    $this->getCidForBin($cid),
+                    $serialized_item,
+                    $ttl
                 );
             }
+
+            foreach ($futures as $future) {
+                $setResponse = $future->wait();
+                if ($setResponse->asError()) {
+                    $this->log(
+                        "SET_MULTIPLE response error for bin $this->bin: " . $setResponse->asError()->message(),
+                        true
+                    );
+                }
+            }
         }
-        $this->stopStopwatch($start, "SET_MULTIPLE in bin $this->bin for " . count($items) . " items");
+        $this->stopStopwatch($start, "SET_MULTIPLE in bin $this->bin for " . count($items) . " items and $bytes_set bytes");
     }
 
     public function delete($cid)
