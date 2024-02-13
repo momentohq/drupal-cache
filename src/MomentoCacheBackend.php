@@ -62,6 +62,7 @@ class MomentoCacheBackend implements CacheBackendInterface
         $numRequested = count($cids);
         $keys = [];
         $fetched_results = [];
+        $fetched = [];
         foreach ($cids as $cid) {
             $keys[] = $this->getCidForBin($cid);
         }
@@ -79,25 +80,25 @@ class MomentoCacheBackend implements CacheBackendInterface
                $fetched_results = $success->results;
             }
 
-            foreach ($fetched_results as $fetched) {
-                if ($fetched->asMiss()) {
-                    $fetched = null;
-                } elseif ($fetched->asError()) {
+            foreach ($fetched_results as $result) {
+                if ($result->asMiss()) {
+                    $result = null;
+                } elseif ($result->asError()) {
                     $this->log(
                         "GET_MULTIPLE response error for bin $this->bin: " . $fetched->asError()->message(),
                         true
                     );
-                    $fetched = null;
+                    $result = null;
                 } else {
-                    $fetched = unserialize($fetched->asHit()->valueString());
-                    if (!$allow_invalid && !$this->valid($fetched)) {
-                        $fetched = null;
+                    $result = unserialize($result->asHit()->valueString());
+                    if (!$allow_invalid && !$this->valid($result)) {
+                        $result = null;
                     }
                 }
-                $fetched_results[$fetched->cid] = $fetched;
+                $fetched[$result->cid] = $result;
             }
         }
-        $cids = array_diff($cids, array_keys($fetched_results));
+        $cids = array_diff($cids, array_keys($fetched));
         $this->stopStopwatch(
             $start,
             "GET_MULTIPLE got " . count($fetched_results) . " items of $numRequested requested."
