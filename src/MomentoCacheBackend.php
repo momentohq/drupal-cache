@@ -60,40 +60,28 @@ class MomentoCacheBackend implements CacheBackendInterface
     {
         $start = $this->startStopwatch();
         $numRequested = count($cids);
+        $keys = [];
         $fetched = [];
-        $fetched_bytes = 0;
+        foreach ($cids as $cid) {
+            $keys[] = $this->getCidForBin($cid);
+        }
 
-        foreach (array_chunk($cids, $this->batchSize) as $cidChunk) {
-            $futures = [];
-            foreach ($cidChunk as $cid) {
-                $futures[$cid] = $this->client->getAsync($this->cacheName, $this->getCidForBin($cid));
-            }
+        $response = $this->client->getBatch($this->cacheName, $keys);
 
-            foreach ($futures as $cid => $future) {
-                $getResponse = $future->wait();
-                if ($getResponse->asHit()) {
-                    $fetched_bytes += strlen($getResponse->asHit()->valueString());
-                    $result = unserialize($getResponse->asHit()->valueString());
-
-                    if ($result->created <= $this->lastBinDeletionTime) {
-                        continue;
-                    }
-
-                    if ($allow_invalid || $this->valid($result)) {
-                        $fetched[$cid] = $result;
-                    }
-                } elseif ($getResponse->asError()) {
-                    $this->log(
-                        "GET error for cid $cid in bin $this->bin: " . $getResponse->asError()->message(),
-                        true
-                    );
-                }
+        if ($response->asError()) {
+            $this->log(
+                "GET_MULTIPLE error for bin $this->bin: " . $response->asError()->message(),
+                true
+            );
+            return [];
+        } else {
+            foreach ($response->asSuccess() as $success) {
+                $fetched = $success->values();
             }
         }
-        $cids = array_diff($cids, array_keys($fetched));
         $this->stopStopwatch(
             $start,
-            "GET_MULTIPLE got " . count($fetched) . " items of $numRequested requested for $fetched_bytes bytes"
+            "GET_MULTIPLE got " . count($fetched) . " items of $numRequested requested."
         );
         return $fetched;
     }
@@ -120,40 +108,14 @@ class MomentoCacheBackend implements CacheBackendInterface
     public function setMultiple(array $items)
     {
         $start = $this->startStopwatch();
-        $futures = [];
-        $bytes_set = 0;
-
-        foreach (array_chunk($items, $this->batchSize, true) as $itemChunk) {
-            foreach ($itemChunk as $cid => $item) {
-                $item = $this->processItemForSet(
-                    $cid,
-                    $item['data'],
-                    $item['expire'] ?? CacheBackendInterface::CACHE_PERMANENT,
-                    $item['tags'] ?? []
-                );
-                $ttl = $item->ttl;
-                unset($item->ttl);
-                $serialized_item = serialize($item);
-                $bytes_set += strlen($serialized_item);
-                $futures[] = $this->client->setAsync(
-                    $this->cacheName,
-                    $this->getCidForBin($cid),
-                    $serialized_item,
-                    $ttl
-                );
-            }
-
-            foreach ($futures as $future) {
-                $setResponse = $future->wait();
-                if ($setResponse->asError()) {
-                    $this->log(
-                        "SET_MULTIPLE response error for bin $this->bin: " . $setResponse->asError()->message(),
-                        true
-                    );
-                }
-            }
+        $response = $this->client->setBatch($this->cacheName, $items);
+        if ($response->asError()) {
+            $this->log(
+                "SET_MULTIPLE response error for bin $this->bin: " . $response->asError()->message(),
+                true
+            );
         }
-        $this->stopStopwatch($start, "SET_MULTIPLE in bin $this->bin for " . count($items) . " items and $bytes_set bytes");
+        $this->stopStopwatch($start, "SET_MULTIPLE in bin $this->bin for " . count($items) . " items");
     }
 
     public function delete($cid)
