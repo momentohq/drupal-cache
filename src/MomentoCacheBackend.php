@@ -61,7 +61,7 @@ class MomentoCacheBackend implements CacheBackendInterface
         $start = $this->startStopwatch();
         $numRequested = count($cids);
         $keys = [];
-        $fetched = [];
+        $fetched_results = [];
         foreach ($cids as $cid) {
             $keys[] = $this->getCidForBin($cid);
         }
@@ -76,14 +76,33 @@ class MomentoCacheBackend implements CacheBackendInterface
             return [];
         } else {
             foreach ($response->asSuccess() as $success) {
-                $fetched = $success->values();
+               $fetched_results = $success->results;
+            }
+
+            foreach ($fetched_results as $key => $fetched) {
+                if ($fetched->asMiss()) {
+                    $fetched = null;
+                } elseif ($fetched->asError()) {
+                    $this->log(
+                        "GET_MULTIPLE response error for bin $this->bin: " . $fetched->asError()->message(),
+                        true
+                    );
+                    $fetched = null;
+                } else {
+                    $fetched = unserialize($fetched->asHit()->valueString());
+                    if (!$allow_invalid && !$this->valid($fetched)) {
+                        $fetched = null;
+                    }
+                }
+                $fetched_results[$key] = $fetched;
             }
         }
+        $cids = array_diff($cids, array_keys($fetched_results));
         $this->stopStopwatch(
             $start,
-            "GET_MULTIPLE got " . count($fetched) . " items of $numRequested requested."
+            "GET_MULTIPLE got " . count($fetched_results) . " items of $numRequested requested."
         );
-        return $fetched;
+        return $fetched_results;
     }
 
     public function set($cid, $data, $expire = CacheBackendInterface::CACHE_PERMANENT, array $tags = [])
@@ -108,6 +127,24 @@ class MomentoCacheBackend implements CacheBackendInterface
     public function setMultiple(array $items)
     {
         $start = $this->startStopwatch();
+
+        $items = array_map(function ($item) {
+            $this->processItemForSet(
+                $item->cid,
+                $item['data'],
+                $item['expire'] ?? CacheBackendInterface::CACHE_PERMANENT,
+                $item['tags'] ?? []
+            );
+            $ttl = $item->ttl;
+            unset($item->ttl);
+            $serialized_item = serialize($item);
+            return [
+                'key' => $this->getCidForBin($item->cid),
+                'value' => $serialized_item,
+                'ttl' => $ttl
+            ];
+        }, $items);
+
         $response = $this->client->setBatch($this->cacheName, $items);
         if ($response->asError()) {
             $this->log(
@@ -216,8 +253,6 @@ class MomentoCacheBackend implements CacheBackendInterface
         if ($expire != CacheBackendInterface::CACHE_PERMANENT) {
             if ($expire < $requestTime) {
                 $item->valid = FALSE;
-            } else {
-                $ttl = $expire - $requestTime;
             }
         }
         $item->expire = $expire;
