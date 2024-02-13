@@ -79,7 +79,7 @@ class MomentoCacheBackend implements CacheBackendInterface
                $fetched_results = $success->results;
             }
 
-            foreach ($fetched_results as $key => $fetched) {
+            foreach ($fetched_results as $fetched) {
                 if ($fetched->asMiss()) {
                     $fetched = null;
                 } elseif ($fetched->asError()) {
@@ -94,7 +94,7 @@ class MomentoCacheBackend implements CacheBackendInterface
                         $fetched = null;
                     }
                 }
-                $fetched_results[$key] = $fetched;
+                $fetched_results[$fetched->cid] = $fetched;
             }
         }
         $cids = array_diff($cids, array_keys($fetched_results));
