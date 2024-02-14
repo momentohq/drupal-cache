@@ -76,7 +76,7 @@ class MomentoCacheBackend implements CacheBackendInterface
             );
             return [];
         } else {
-            $fetched_results = $response->asSuccess()->results;
+            $fetched_results = $response->asSuccess()->results();
 
             foreach ($fetched_results as $result) {
                 if ($result->asHit()) {
