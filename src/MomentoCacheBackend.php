@@ -76,26 +76,27 @@ class MomentoCacheBackend implements CacheBackendInterface
             );
             return [];
         } else {
-            foreach ($response->asSuccess() as $success) {
-               $fetched_results = $success->results;
-            }
+            $fetched_results = $response->asSuccess()->results;
 
             foreach ($fetched_results as $result) {
-                if ($result->asMiss()) {
-                    $result = null;
+                if ($result->asHit()) {
+                    $item = unserialize($result->asHit()->valueString());
+
+                    if ($item->created <= $this->lastBinDeletionTime) {
+                        continue;
+                    }
+
+                    if ($allow_invalid || $this->valid($item)) {
+                        print "item:";
+                        print_r($item);
+                        $fetched[$item->cid] = $item;
+                    }
                 } elseif ($result->asError()) {
                     $this->log(
-                        "GET_MULTIPLE response error for bin $this->bin: " . $fetched->asError()->message(),
+                        "GET_MULTIPLE response error for bin $this->bin: " . $result->asError()->message(),
                         true
                     );
-                    $result = null;
-                } else {
-                    $result = unserialize($result->asHit()->valueString());
-                    if (!$allow_invalid && !$this->valid($result)) {
-                        $result = null;
-                    }
                 }
-                $fetched[$result->cid] = $result;
             }
         }
         $cids = array_diff($cids, array_keys($fetched));
