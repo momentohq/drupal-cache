@@ -132,14 +132,12 @@ class MomentoCacheBackend implements CacheBackendInterface
         $maxTtl = $this->MAX_TTL;
 
         foreach ($items as $cid => $item) {
-            @error_log("processing item: $item", 3, $this->logFile);
             $processedItem = $this->processItemForSet(
                 $cid,
                 $item['data'] ?? '',
                 $item['expire'] ?? CacheBackendInterface::CACHE_PERMANENT,
                 $item['tags'] ?? []
             );
-            @error_log("Processing item: " . print_r($processedItem, true), 3, $this->logFile);
 
             $ttl = $processedItem->ttl;
             unset($processedItem->ttl);
