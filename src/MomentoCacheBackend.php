@@ -130,7 +130,7 @@ class MomentoCacheBackend implements CacheBackendInterface
         $processed_items = [];
         $maxTtl = $this->MAX_TTL;
 
-        foreach ($items as $cid => $item) {
+        foreach ($items as $cid => &$item) {
             $item = $this->processItemForSet(
                 $cid,
                 $item['data'] ?? '',
