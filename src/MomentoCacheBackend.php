@@ -143,9 +143,7 @@ class MomentoCacheBackend implements CacheBackendInterface
             $ttl = $item->ttl;
             unset($item->ttl);
             $serialized_item = serialize($item);
-            $processed_items[] = [
-                $this->getCidForBin($cid) => $serialized_item
-            ];
+            $processed_items[$this->getCidForBin($cid)] = $serialized_item;
         }
 
         error_log("Processed items: " . print_r($processed_items, true), 3, $this->logFile);
