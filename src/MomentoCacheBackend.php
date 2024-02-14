@@ -130,25 +130,26 @@ class MomentoCacheBackend implements CacheBackendInterface
         $start = $this->startStopwatch();
 
         $processed_items = [];
-        $ttl = $this->MAX_TTL;
+        $maxTtl = $this->MAX_TTL;
 
         foreach ($items as $cid => $item) {
             error_log("Item: " . print_r($item, true), 3, $this->logFile);
-            $item = $this->processItemForSet(
+            $processedItem = $this->processItemForSet(
                 $cid,
                 $item['data'],
                 $item['expire'] ?? CacheBackendInterface::CACHE_PERMANENT,
                 $item['tags'] ?? []
             );
-            $ttl = $item->ttl;
-            unset($item->ttl);
-            $serialized_item = serialize($item);
-            $processed_items[$this->getCidForBin($cid)] = $serialized_item;
+            $ttl = $processedItem->ttl;
+            unset($processedItem->ttl);
+            $serializedItem = serialize($processedItem);
+            $cacheKey = $this->getCidForBin($cid);
+            $processed_items[$cacheKey] = $serializedItem;
         }
 
         error_log("Processed items: " . print_r($processed_items, true), 3, $this->logFile);
 
-        $response = $this->client->setBatch($this->cacheName, $processed_items, $ttl);
+        $response = $this->client->setBatch($this->cacheName, $processed_items, $maxTtl);
         if ($response->asError()) {
             $this->log(
                 "SET_MULTIPLE response error for bin $this->bin: " . $response->asError()->message(),
@@ -157,6 +158,7 @@ class MomentoCacheBackend implements CacheBackendInterface
         }
         $this->stopStopwatch($start, "SET_MULTIPLE in bin $this->bin for " . count($items) . " items");
     }
+
 
     public function delete($cid)
     {
