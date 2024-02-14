@@ -131,9 +131,10 @@ class MomentoCacheBackend implements CacheBackendInterface
 
         $processed_items = [];
 
-        foreach ($items as $item) {
+        foreach ($items as $cid => $item) {
+            error_log("Item: " . print_r($item, true), 3, $this->logFile);
             $item = $this->processItemForSet(
-                $item->cid,
+                $cid,
                 $item['data'],
                 $item['expire'] ?? CacheBackendInterface::CACHE_PERMANENT,
                 $item['tags'] ?? []
