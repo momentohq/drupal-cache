@@ -130,6 +130,7 @@ class MomentoCacheBackend implements CacheBackendInterface
         $start = $this->startStopwatch();
 
         $processed_items = [];
+        $ttl = $this->MAX_TTL;
 
         foreach ($items as $cid => $item) {
             error_log("Item: " . print_r($item, true), 3, $this->logFile);
@@ -145,13 +146,12 @@ class MomentoCacheBackend implements CacheBackendInterface
             $processed_items[] = [
                 'key' => $this->getCidForBin($cid),
                 'value' => $serialized_item,
-                'ttl' => $ttl
             ];
         }
 
         error_log("Processed items: " . print_r($processed_items, true), 3, $this->logFile);
 
-        $response = $this->client->setBatch($this->cacheName, $processed_items);
+        $response = $this->client->setBatch($this->cacheName, $processed_items, $ttl);
         if ($response->asError()) {
             $this->log(
                 "SET_MULTIPLE response error for bin $this->bin: " . $response->asError()->message(),
