@@ -87,8 +87,7 @@ class MomentoCacheBackend implements CacheBackendInterface
                     }
 
                     if ($allow_invalid || $this->valid($item)) {
-                        print "item:";
-                        print_r($item);
+                        @error_log("Item: [$item]\n", 3, $this->logFile);
                         $fetched[$item->cid] = $item;
                     }
                 } elseif ($result->asError()) {
