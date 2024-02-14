@@ -102,7 +102,7 @@ class MomentoCacheBackend implements CacheBackendInterface
             $start,
             "GET_MULTIPLE got " . count($fetched_results) . " items of $numRequested requested."
         );
-        return $fetched_results;
+        return $fetched;
     }
 
     public function set($cid, $data, $expire = CacheBackendInterface::CACHE_PERMANENT, array $tags = [])
@@ -135,7 +135,7 @@ class MomentoCacheBackend implements CacheBackendInterface
             @error_log("processing item: $item", 3, $this->logFile);
             $processedItem = $this->processItemForSet(
                 $cid,
-                $item['data'] ?? '',
+                $item['data'] ?? 'test-debug-data',
                 $item['expire'] ?? CacheBackendInterface::CACHE_PERMANENT,
                 $item['tags'] ?? []
             );
