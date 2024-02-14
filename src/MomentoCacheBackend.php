@@ -243,7 +243,7 @@ class MomentoCacheBackend implements CacheBackendInterface
 
         $ttl = $this->MAX_TTL;
         $item = new \stdClass();
-//        $item->cid = $cid;
+        $item->cid = $cid;
         $item->tags = $tags;
         $item->data = $data;
         $item->created = round(microtime(TRUE), 3);
