@@ -61,7 +61,6 @@ class MomentoCacheBackend implements CacheBackendInterface
         $start = $this->startStopwatch();
         $numRequested = count($cids);
         $keys = [];
-        $fetched_results = [];
         $fetched = [];
         foreach ($cids as $cid) {
             $keys[] = $this->getCidForBin($cid);
@@ -132,16 +131,16 @@ class MomentoCacheBackend implements CacheBackendInterface
         $maxTtl = $this->MAX_TTL;
 
         foreach ($items as $cid => $item) {
-            $processedItem = $this->processItemForSet(
+            $item = $this->processItemForSet(
                 $cid,
                 $item['data'] ?? '',
                 $item['expire'] ?? CacheBackendInterface::CACHE_PERMANENT,
                 $item['tags'] ?? []
             );
 
-            $ttl = $processedItem->ttl;
-            unset($processedItem->ttl);
-            $serializedItem = serialize($processedItem);
+            $ttl = $item->ttl;
+            unset($item->ttl);
+            $serializedItem = serialize($item);
             $cacheKey = $this->getCidForBin($cid);
             $processed_items[$cacheKey] = $serializedItem;
         }
