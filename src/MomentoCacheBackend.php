@@ -78,7 +78,7 @@ class MomentoCacheBackend implements CacheBackendInterface
         } else {
             $fetched_results = $response->asSuccess()->results();
 
-            foreach ($fetched_results as $result) {
+            foreach ($fetched_results as $cid => $result) {
                 if ($result->asHit()) {
                     $item = unserialize($result->asHit()->valueString());
 
@@ -87,7 +87,7 @@ class MomentoCacheBackend implements CacheBackendInterface
                     }
 
                     if ($allow_invalid || $this->valid($item)) {
-                        $fetched[$item->cid] = $item;
+                        $fetched[$cid] = $item;
                     }
                 } elseif ($result->asError()) {
                     $this->log(
@@ -144,7 +144,7 @@ class MomentoCacheBackend implements CacheBackendInterface
             $cacheKey = $this->getCidForBin($cid);
             $processed_items[$cacheKey] = $serializedItem;
         }
-        
+
         $response = $this->client->setBatch($this->cacheName, $processed_items, $maxTtl);
         if ($response->asError()) {
             $this->log(
