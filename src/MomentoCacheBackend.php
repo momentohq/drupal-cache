@@ -129,8 +129,10 @@ class MomentoCacheBackend implements CacheBackendInterface
     {
         $start = $this->startStopwatch();
 
-        $items = array_map(function ($item) {
-            $this->processItemForSet(
+        $processed_items = [];
+
+        foreach ($items as $item) {
+            $item = $this->processItemForSet(
                 $item->cid,
                 $item['data'],
                 $item['expire'] ?? CacheBackendInterface::CACHE_PERMANENT,
@@ -139,14 +141,16 @@ class MomentoCacheBackend implements CacheBackendInterface
             $ttl = $item->ttl;
             unset($item->ttl);
             $serialized_item = serialize($item);
-            return [
+            $processed_items[] = [
                 'key' => $this->getCidForBin($item->cid),
                 'value' => $serialized_item,
                 'ttl' => $ttl
             ];
-        }, $items);
+        }
 
-        $response = $this->client->setBatch($this->cacheName, $items);
+        error_log("Processed items: " . print_r($processed_items, true), 3, $this->logFile);
+
+        $response = $this->client->setBatch($this->cacheName, $processed_items);
         if ($response->asError()) {
             $this->log(
                 "SET_MULTIPLE response error for bin $this->bin: " . $response->asError()->message(),
