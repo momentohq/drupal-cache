@@ -135,7 +135,7 @@ class MomentoCacheBackend implements CacheBackendInterface
             @error_log("processing item: $item", 3, $this->logFile);
             $processedItem = $this->processItemForSet(
                 $cid,
-                $item['data'] ?? 'test-debug-data',
+                $item['data'] ?? '',
                 $item['expire'] ?? CacheBackendInterface::CACHE_PERMANENT,
                 $item['tags'] ?? []
             );
