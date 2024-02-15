@@ -63,7 +63,7 @@ class MomentoCacheBackend implements CacheBackendInterface
         $keys = [];
         $fetched = [];
         foreach ($cids as $cid) {
-            $keys[] = $this->getCidForBin($cid);
+            $keys[$cid] = $this->getCidForBin($cid);
         }
 
         $response = $this->client->getBatch($this->cacheName, $keys);
@@ -77,8 +77,9 @@ class MomentoCacheBackend implements CacheBackendInterface
         } else {
             $fetched_results = $response->asSuccess()->results();
 
-            foreach ($fetched_results as $counter => $result) {
-                $cid = $cids[$counter];
+            foreach ($cids as $cid) {
+                $key = $keys[$cid];
+                $result = $fetched_results[$key];
                 if ($result->asHit()) {
                     $item = unserialize($result->asHit()->valueString());
 
