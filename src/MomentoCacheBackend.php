@@ -77,9 +77,7 @@ class MomentoCacheBackend implements CacheBackendInterface
         } else {
             $fetched_results = $response->asSuccess()->results();
 
-            foreach ($cids as $cid) {
-                $key = $keys[$cid];
-                $result = $fetched_results[$key];
+            foreach ($fetched_results as $cid => $result) {
                 if ($result->asHit()) {
                     $item = unserialize($result->asHit()->valueString());
 
