@@ -137,9 +137,6 @@ class MomentoCacheBackend implements CacheBackendInterface
                 $item['expire'] ?? CacheBackendInterface::CACHE_PERMANENT,
                 $item['tags'] ?? []
             );
-
-            @error_log("item: " . print($item['cid']) . "\n", 3, $this->logFile);
-
             $ttl = $item->ttl;
             unset($item->ttl);
             $serializedItem = serialize($item);
