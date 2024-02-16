@@ -8,6 +8,6 @@
         }
     },
     "require": {
-        "momentohq/client-sdk-php": "dev-feat/add-getBatch-and-setBatch"
+        "momentohq/client-sdk-php": "v1.7.0"
     }
 }
