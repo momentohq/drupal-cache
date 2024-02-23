@@ -284,19 +284,19 @@ class MomentoCacheBackend implements CacheBackendInterface
     }
 
     private function log(string $message, bool $logToDblog = false) {
-        if ($logToDblog) {
-            $this->getLogger('momento_cache')->error($message);
-        }
+        // if ($logToDblog) {
+        //     $this->getLogger('momento_cache')->error($message);
+        // }
 
-        if (!$this->logFile) {
-            return;
-        }
+        // if (!$this->logFile) {
+        //     return;
+        // }
 
-        if ($message[-1] != "\n") {
-            $message .= "\n";
-        }
-        $mt = microtime(true);
-        @error_log("[$mt] $message", 3, $this->logFile);
+        // if ($message[-1] != "\n") {
+        //     $message .= "\n";
+        // }
+        // $mt = microtime(true);
+        // @error_log("[$mt] $message", 3, $this->logFile);
     }
 
     private function startStopwatch() {
