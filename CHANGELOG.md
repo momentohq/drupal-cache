@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.5.3](https://github.com/momentohq/drupal-cache/compare/v0.5.2...v0.5.3) (2024-03-07)
+
+
+### Bug Fixes
+
+* update module version in installation instructions ([#26](https://github.com/momentohq/drupal-cache/issues/26)) ([e40256c](https://github.com/momentohq/drupal-cache/commit/e40256c1ca85df71c7723b7a1d5be13abf0ad615))
+* update push-to-main.yml ([#29](https://github.com/momentohq/drupal-cache/issues/29)) ([f2287ab](https://github.com/momentohq/drupal-cache/commit/f2287ab12ec5e71e64f41f13e5d2ed4e4123d868))
+
+
+### Miscellaneous
+
+* add num_grpc_channels and batch_size settings ([#25](https://github.com/momentohq/drupal-cache/issues/25)) ([4f84721](https://github.com/momentohq/drupal-cache/commit/4f847212a58a34e691fbef1d1a87a4555554a2d2))
+
 ## [0.5.2](https://github.com/momentohq/drupal-cache/compare/v0.5.1...v0.5.2) (2023-11-14)
 
 
