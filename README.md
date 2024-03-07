@@ -4,7 +4,7 @@
 
 A Momento API Token is required. You can generate one using the [Momento Console](https://console.gomomento.com/).
 
-The Momento Cache module uses [Momento's PHP SDK](https://docs.momentohq.com/cache/develop/sdks/php) internally. While installing the Drupal module will automatically install the SDK for you. Separately, you will need to install and enable the following extensions:
+The Momento Cache module uses [Momento's PHP SDK](https://docs.momentohq.com/sdks#php-sdk) internally. While installing the Drupal module will automatically install the SDK for you. Separately, you will need to install and enable the following extensions:
 1. [The PHP gRPC extension](https://github.com/grpc/grpc/blob/master/src/php/README.md) for the SDK to function.
 2. The C Protobuf extension for PHP. You can install it using `pecl install protobuf` and then add `extension=protobuf.so` to your `php.ini` file.
 
