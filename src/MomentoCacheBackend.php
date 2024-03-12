@@ -9,20 +9,73 @@ use Drupal\Core\Site\Settings;
 use Drupal\Component\Assertion\Inspector;
 
 /**
- * Class MomentoCacheBackend.
+ * Provides a cache backend implementation using the Momento caching system.
  */
 class MomentoCacheBackend implements CacheBackendInterface {
 
   use LoggerChannelTrait;
 
+  /**
+   * The name of the backend.
+   *
+   * @var string
+   */
   private $backendName = "momento-cache";
+
+  /**
+   * The cache bin.
+   *
+   * @var string
+   */
   private $bin;
+
+    /**
+     * The bin tag.
+     *
+     * @var string
+     */
   private $binTag;
+
+    /**
+     * The last bin deletion time.
+     *
+     * @var int
+     */
   private $lastBinDeletionTime;
+
+    /**
+     * The Momento client.
+     *
+     * @var \Momento\Cache\CacheClient
+     */
   private $client;
+
+    /**
+     * The checksum provider.
+     *
+     * @var \Drupal\Core\Cache\CacheTagsChecksumInterface
+     */
   private $checksumProvider;
-  private $MAX_TTL;
+
+    /**
+     * The maximum time to live.
+     *
+     * @var int
+     */
+  private $maxTtl;
+
+    /**
+     * The cache name.
+     *
+     * @var string
+     */
   private $cacheName;
+
+    /**
+     * The log file.
+     *
+     * @var string
+     */
   private $logFile;
 
   /**
@@ -33,7 +86,7 @@ class MomentoCacheBackend implements CacheBackendInterface {
         $client,
         CacheTagsChecksumInterface $checksum_provider
     ) {
-    $this->MAX_TTL = intdiv(PHP_INT_MAX, 1000);
+    $this->maxTtl = intdiv(PHP_INT_MAX, 1000);
     $this->client = $client;
     $this->bin = $bin;
     $this->checksumProvider = $checksum_provider;
@@ -261,7 +314,7 @@ class MomentoCacheBackend implements CacheBackendInterface {
     $tags = array_unique($tags);
     sort($tags);
 
-    $ttl = $this->MAX_TTL;
+    $ttl = $this->maxTtl;
     $item = new \stdClass();
     $item->cid = $cid;
     $item->tags = $tags;
