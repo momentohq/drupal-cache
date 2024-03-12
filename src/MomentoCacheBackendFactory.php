@@ -14,32 +14,37 @@ class MomentoCacheBackendFactory implements CacheFactoryInterface {
 
   /**
    * The Momento client factory.
+   *
    * @var \Drupal\momento_cache\Client\MomentoClientFactory
    */
   private $momentoFactory;
 
   /**
    * The cache tags checksum provider.
+   *
    * @var \Drupal\Core\Cache\CacheTagsChecksumInterface
    */
   private $checksumProvider;
 
-   /**
-    * The cache name.
-    * @var string
-    */
+  /**
+   * The cache name.
+   *
+   * @var string
+   */
   private static $cacheName;
 
-   /**
-    * The Momento client.
-    * @var \Momento\Cache\CacheClient
-    */
+  /**
+   * The Momento client.
+   *
+   * @var \Momento\Cache\CacheClient
+   */
   private $client;
 
-   /**
-    * The cache backends.
-    * @var array
-    */
+  /**
+   * The cache backends.
+   *
+   * @var array
+   */
   private $backends = [];
 
   /**
