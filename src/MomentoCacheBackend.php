@@ -29,53 +29,53 @@ class MomentoCacheBackend implements CacheBackendInterface {
    */
   private $bin;
 
-    /**
-     * The bin tag.
-     *
-     * @var string
-     */
+  /**
+   * The bin tag.
+   *
+   * @var string
+   */
   private $binTag;
 
-    /**
-     * The last bin deletion time.
-     *
-     * @var int
-     */
+  /**
+   * The last bin deletion time.
+   *
+   * @var int
+   */
   private $lastBinDeletionTime;
 
-    /**
-     * The Momento client.
-     *
-     * @var \Momento\Cache\CacheClient
-     */
+  /**
+   * The Momento client.
+   *
+   * @var \Momento\Cache\CacheClient
+   */
   private $client;
 
-    /**
-     * The checksum provider.
-     *
-     * @var \Drupal\Core\Cache\CacheTagsChecksumInterface
-     */
+  /**
+   * The checksum provider.
+   *
+   * @var \Drupal\Core\Cache\CacheTagsChecksumInterface
+   */
   private $checksumProvider;
 
-    /**
-     * The maximum time to live.
-     *
-     * @var int
-     */
+  /**
+   * The maximum time to live.
+   *
+   * @var int
+   */
   private $maxTtl;
 
-    /**
-     * The cache name.
-     *
-     * @var string
-     */
+  /**
+   * The cache name.
+   *
+   * @var string
+   */
   private $cacheName;
 
-    /**
-     * The log file.
-     *
-     * @var string
-     */
+  /**
+   * The log file.
+   *
+   * @var string
+   */
   private $logFile;
 
   /**
