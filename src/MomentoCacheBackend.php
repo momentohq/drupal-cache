@@ -9,7 +9,7 @@ use Drupal\Core\Site\Settings;
 use Drupal\Component\Assertion\Inspector;
 
 /**
- *
+ * Class MomentoCacheBackend.
  */
 class MomentoCacheBackend implements CacheBackendInterface {
 
@@ -26,7 +26,7 @@ class MomentoCacheBackend implements CacheBackendInterface {
   private $logFile;
 
   /**
-   *
+   * MomentoCacheBackend constructor.
    */
   public function __construct(
         $bin,
@@ -47,7 +47,7 @@ class MomentoCacheBackend implements CacheBackendInterface {
   }
 
   /**
-   *
+   * Gets cache record(s) for a specific cache ID(s).
    */
   public function get($cid, $allow_invalid = FALSE) {
     $cids = [$cid];
@@ -56,14 +56,14 @@ class MomentoCacheBackend implements CacheBackendInterface {
   }
 
   /**
-   *
+   * Gets cid for bin.
    */
   private function getCidForBin($cid) {
     return "$this->bin:$cid";
   }
 
   /**
-   *
+   * Gets multiple cache records for multiple cache IDs.
    */
   public function getMultiple(&$cids, $allow_invalid = FALSE) {
     $start = $this->startStopwatch();
@@ -101,7 +101,7 @@ class MomentoCacheBackend implements CacheBackendInterface {
   }
 
   /**
-   *
+   * Sets cache record(s) for a specific cache ID(s).
    */
   public function set($cid, $data, $expire = CacheBackendInterface::CACHE_PERMANENT, array $tags = []) {
     $start = $this->startStopwatch();
@@ -121,7 +121,7 @@ class MomentoCacheBackend implements CacheBackendInterface {
   }
 
   /**
-   *
+   * Sets multiple cache records for multiple cache IDs.
    */
   public function setMultiple(array $items) {
     $start = $this->startStopwatch();
@@ -156,7 +156,7 @@ class MomentoCacheBackend implements CacheBackendInterface {
   }
 
   /**
-   *
+   * Deletes a cache record for a specific cache ID.
    */
   public function delete($cid) {
     $start = $this->startStopwatch();
@@ -173,7 +173,7 @@ class MomentoCacheBackend implements CacheBackendInterface {
   }
 
   /**
-   *
+   * Deletes multiple cache records for multiple cache IDs.
    */
   public function deleteMultiple(array $cids) {
     $start = $this->startStopwatch();
@@ -184,7 +184,7 @@ class MomentoCacheBackend implements CacheBackendInterface {
   }
 
   /**
-   *
+   * Deletes all cache records in a bin.
    */
   public function deleteAll() {
     $start = $this->startStopwatch();
@@ -193,7 +193,7 @@ class MomentoCacheBackend implements CacheBackendInterface {
   }
 
   /**
-   *
+   * Invalidates a cache record for a specific cache ID.
    */
   public function invalidate($cid) {
     $start = $this->startStopwatch();
@@ -202,7 +202,7 @@ class MomentoCacheBackend implements CacheBackendInterface {
   }
 
   /**
-   *
+   * Invalidates multiple cache records for multiple cache IDs.
    */
   public function invalidateMultiple(array $cids) {
     $start = $this->startStopwatch();
@@ -216,7 +216,7 @@ class MomentoCacheBackend implements CacheBackendInterface {
   }
 
   /**
-   *
+   * Invalidates all cache records in a bin.
    */
   public function invalidateAll() {
     $start = $this->startStopwatch();
@@ -225,7 +225,7 @@ class MomentoCacheBackend implements CacheBackendInterface {
   }
 
   /**
-   *
+   * Invalidates cache records by tag.
    */
   public function invalidateTags(array $tags) {
     $start = $this->startStopwatch();
@@ -234,7 +234,7 @@ class MomentoCacheBackend implements CacheBackendInterface {
   }
 
   /**
-   *
+   * Removes a bin.
    */
   public function removeBin() {
     $start = $this->startStopwatch();
@@ -243,7 +243,7 @@ class MomentoCacheBackend implements CacheBackendInterface {
   }
 
   /**
-   *
+   * Garbage collection.
    */
   public function garbageCollection() {
     // Momento will invalidate items; That item's memory allocation is then
@@ -251,7 +251,7 @@ class MomentoCacheBackend implements CacheBackendInterface {
   }
 
   /**
-   *
+   * Process item for set.
    */
   private function processItemForSet($cid, $data, $expire = CacheBackendInterface::CACHE_PERMANENT, array $tags = []) {
     assert(Inspector::assertAllStrings($tags));
@@ -285,7 +285,7 @@ class MomentoCacheBackend implements CacheBackendInterface {
   }
 
   /**
-   *
+   * Validate item.
    */
   private function valid($item) {
     // If container isn't initialized yet, use $SERVER's request time value.
@@ -309,7 +309,7 @@ class MomentoCacheBackend implements CacheBackendInterface {
   }
 
   /**
-   *
+   * Log.
    */
   private function log(string $message, bool $logToDblog = FALSE) {
     if ($logToDblog) {
@@ -328,14 +328,14 @@ class MomentoCacheBackend implements CacheBackendInterface {
   }
 
   /**
-   *
+   * Start stopwatch.
    */
   private function startStopwatch() {
     return hrtime(TRUE);
   }
 
   /**
-   *
+   * Stop stopwatch.
    */
   private function stopStopwatch($startTime, $message = NULL) {
     if (!$this->logFile) {
@@ -348,7 +348,7 @@ class MomentoCacheBackend implements CacheBackendInterface {
   }
 
   /**
-   *
+   * Ensure last bin deletion time is set.
    */
   private function ensureLastBinDeletionTimeIsSet() {
     if (!$this->lastBinDeletionTime) {
@@ -369,7 +369,7 @@ class MomentoCacheBackend implements CacheBackendInterface {
   }
 
   /**
-   *
+   * Set last bin deletion time.
    */
   private function setLastBinDeletionTime() {
     $this->lastBinDeletionTime = round(microtime(TRUE), 3);
