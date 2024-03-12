@@ -37,4 +37,3 @@ Replace `<YOUR_CACHE_NAME>` with the name of your existing Momento cache. You ma
 Replace `<YOUR_LOG_FILE_PATH>` with the path of a file writable by your Drupal server or with `null` if you want to suppress logging. This logfile is used for logging and timing requests as they are handled by the module. Please be aware that this file will grow quickly over time, so if you choose to enable it long-term, you should probably use `logrotate` or some similar utility to keep it from growing out of control.
 
 The example above uses Momento for all Drupal caches. If you prefer to use Momento for specific cache bins, you may assign them individually as well: `$settings['cache']['bins']['render'] = 'cache.backend.momento_cache'`
-

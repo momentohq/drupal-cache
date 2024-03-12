@@ -7,6 +7,9 @@ use Drupal\Core\Cache\CacheTagsChecksumInterface;
 use Drupal\Core\Site\Settings;
 use Drupal\momento_cache\Client\MomentoClientFactory;
 
+/**
+ *
+ */
 class MomentoCacheBackendFactory implements CacheFactoryInterface {
 
     private $momentoFactory;
@@ -16,7 +19,9 @@ class MomentoCacheBackendFactory implements CacheFactoryInterface {
     private $client;
     private $backends = [];
 
-
+    /**
+     *
+     */
     public function __construct(
         MomentoClientFactory $momento_factory,
         CacheTagsChecksumInterface $checksum_provider
@@ -29,12 +34,17 @@ class MomentoCacheBackendFactory implements CacheFactoryInterface {
             $settings['cache_name'] : getenv("MOMENTO_CACHE_NAME");
     }
 
+    /**
+     *
+     */
     public static function getCacheName() {
         return static::$cacheName ?? '';
     }
 
-    public function get($bin)
-    {
+    /**
+     *
+     */
+    public function get($bin) {
         if (array_key_exists($bin, $this->backends)) {
             return $this->backends[$bin];
         }
@@ -47,4 +57,5 @@ class MomentoCacheBackendFactory implements CacheFactoryInterface {
         $this->backends[$bin] = $backend;
         return $backend;
     }
+
 }
