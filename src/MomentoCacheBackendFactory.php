@@ -8,16 +8,33 @@ use Drupal\Core\Site\Settings;
 use Drupal\momento_cache\Client\MomentoClientFactory;
 
 /**
- * Defines the MomentoCacheBackendFactory service.
- * Creates cache backend instances for the Momento cache system.
+ * Defines the MomentoCacheBackendFactory service. Creates cache backend instances for the Momento cache system.
  */
 class MomentoCacheBackendFactory implements CacheFactoryInterface {
 
+ /**
+  * The Momento client factory.
+  */
   private $momentoFactory;
+
+ /**
+  * The cache tags checksum provider.
+  */
   private $checksumProvider;
 
+  /**
+   * The cache name.
+   */
   private static $cacheName;
+
+  /**
+   * The Momento client.
+   */
   private $client;
+
+  /**
+   * The cache backends.
+   */
   private $backends = [];
 
   /**
