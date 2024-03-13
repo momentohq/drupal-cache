@@ -2,11 +2,11 @@
 
 namespace Drupal\momento_cache;
 
+use Drupal\Component\Assertion\Inspector;
 use Drupal\Core\Cache\CacheBackendInterface;
 use Drupal\Core\Cache\CacheTagsChecksumInterface;
 use Drupal\Core\Logger\LoggerChannelTrait;
 use Drupal\Core\Site\Settings;
-use Drupal\Component\Assertion\Inspector;
 
 /**
  * Provides a cache backend implementation using the Momento caching system.
