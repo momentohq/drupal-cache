@@ -2,341 +2,436 @@
 
 namespace Drupal\momento_cache;
 
+use Drupal\Component\Assertion\Inspector;
 use Drupal\Core\Cache\CacheBackendInterface;
 use Drupal\Core\Cache\CacheTagsChecksumInterface;
-use Drupal\Core\Cache\CacheTagsInvalidatorInterface;
 use Drupal\Core\Logger\LoggerChannelTrait;
 use Drupal\Core\Site\Settings;
-use Drupal\Component\Assertion\Inspector;
 
-class MomentoCacheBackend implements CacheBackendInterface
-{
+/**
+ * Provides a cache backend implementation using the Momento caching system.
+ */
+class MomentoCacheBackend implements CacheBackendInterface {
 
-    use LoggerChannelTrait;
+  use LoggerChannelTrait;
 
-    private $backendName = "momento-cache";
-    private $bin;
-    private $binTag;
-    private $lastBinDeletionTime;
-    private $client;
-    private $checksumProvider;
-    private $MAX_TTL;
-    private $cacheName;
-    private $logFile;
-    private $batchSize;
+  /**
+   * The name of the backend.
+   *
+   * @var string
+   */
+  private $backendName = "momento-cache";
 
-    public function __construct(
+  /**
+   * The cache bin.
+   *
+   * @var string
+   */
+  private $bin;
+
+  /**
+   * The bin tag.
+   *
+   * @var string
+   */
+  private $binTag;
+
+  /**
+   * The last bin deletion time.
+   *
+   * @var int
+   */
+  private $lastBinDeletionTime;
+
+  /**
+   * The Momento client.
+   *
+   * @var \Momento\Cache\CacheClient
+   */
+  private $client;
+
+  /**
+   * The checksum provider.
+   *
+   * @var \Drupal\Core\Cache\CacheTagsChecksumInterface
+   */
+  private $checksumProvider;
+
+  /**
+   * The maximum time to live.
+   *
+   * @var int
+   */
+  private $maxTtl;
+
+  /**
+   * The cache name.
+   *
+   * @var string
+   */
+  private $cacheName;
+
+  /**
+   * The log file.
+   *
+   * @var string
+   */
+  private $logFile;
+
+  /**
+   * MomentoCacheBackend constructor.
+   */
+  public function __construct(
         $bin,
         $client,
         CacheTagsChecksumInterface $checksum_provider
     ) {
-        $this->MAX_TTL = intdiv(PHP_INT_MAX, 1000);
-        $this->client = $client;
-        $this->bin = $bin;
-        $this->checksumProvider = $checksum_provider;
-        $this->binTag = "$this->backendName:$this->bin";
+    $this->maxTtl = intdiv(PHP_INT_MAX, 1000);
+    $this->client = $client;
+    $this->bin = $bin;
+    $this->checksumProvider = $checksum_provider;
+    $this->binTag = "$this->backendName:$this->bin";
 
-        $settings = Settings::get('momento_cache', []);
-        $this->cacheName = MomentoCacheBackendFactory::getCacheName();
-        $this->logFile =
-            array_key_exists('logfile', $settings) ? $settings['logfile'] : null;
-        $this->batchSize =
-            array_key_exists('batch_size', $settings) ? $settings['batch_size'] : 50;
-        $this->ensureLastBinDeletionTimeIsSet();
-    }
+    $settings = Settings::get('momento_cache', []);
+    $this->cacheName = MomentoCacheBackendFactory::getCacheName();
+    $this->logFile =
+            array_key_exists('logfile', $settings) ? $settings['logfile'] : NULL;
+    $this->ensureLastBinDeletionTimeIsSet();
+  }
 
-    public function get($cid, $allow_invalid = FALSE)
-    {
-        $cids = [$cid];
-        $recs = $this->getMultiple($cids, $allow_invalid);
-        return reset($recs);
-    }
+  /**
+   * Gets cache record(s) for a specific cache ID(s).
+   */
+  public function get($cid, $allow_invalid = FALSE) {
+    $cids = [$cid];
+    $recs = $this->getMultiple($cids, $allow_invalid);
+    return reset($recs);
+  }
 
-    private function getCidForBin($cid) {
-        return "$this->bin:$cid";
-    }
+  /**
+   * Gets cid for bin.
+   */
+  private function getCidForBin($cid) {
+    return "$this->bin:$cid";
+  }
 
-    public function getMultiple(&$cids, $allow_invalid = FALSE)
-    {
-        $start = $this->startStopwatch();
-        $numRequested = count($cids);
-        $keys = [];
-        $fetched = [];
-        foreach ($cids as $cid) {
-            $keys[$cid] = $this->getCidForBin($cid);
+  /**
+   * Gets multiple cache records for multiple cache IDs.
+   */
+  public function getMultiple(&$cids, $allow_invalid = FALSE) {
+    $start = $this->startStopwatch();
+    $fetched = [];
+    foreach (array_chunk($cids, 100) as $cidChunk) {
+      $futures = [];
+      foreach ($cidChunk as $cid) {
+        $futures[$cid] = $this->client->getAsync($this->cacheName, $this->getCidForBin($cid));
+      }
+
+      foreach ($futures as $cid => $future) {
+        $getResponse = $future->wait();
+        if ($getResponse->asHit()) {
+          $result = unserialize($getResponse->asHit()->valueString());
+
+          if ($result->created <= $this->lastBinDeletionTime) {
+            continue;
+          }
+
+          if ($allow_invalid || $this->valid($result)) {
+            $fetched[$cid] = $result;
+          }
         }
-
-        $keysArray = array_keys($keys);
-        $counter = 0;
-
-        $response = $this->client->getBatch($this->cacheName, $keys);
-
-        if ($response->asError()) {
-            $this->log(
-                "GET_MULTIPLE error for bin $this->bin: " . $response->asError()->message(),
-                true
+        elseif ($getResponse->asError()) {
+          $this->log(
+                "GET error for cid $cid in bin $this->bin: " . $getResponse->asError()->message(),
+                TRUE
             );
-            return [];
-        } else {
-            $fetched_results = $response->asSuccess()->results();
-
-            foreach ($fetched_results as $result) {
-                $cid = $keysArray[$counter++];
-                if ($result->asHit()) {
-                    $item = unserialize($result->asHit()->valueString());
-
-                    if ($item->created <= $this->lastBinDeletionTime) {
-                        continue;
-                    }
-
-                    if ($allow_invalid || $this->valid($item)) {
-                        $fetched[$cid] = $item;
-                    }
-                } elseif ($result->asError()) {
-                    $this->log(
-                        "GET_MULTIPLE response error for bin $this->bin: " . $result->asError()->message(),
-                        true
-                    );
-                }
-            }
         }
-        $cids = array_diff($cids, array_keys($fetched));
-        $this->stopStopwatch(
-            $start,
-            "GET_MULTIPLE got " . count($fetched_results) . " items of $numRequested requested."
+      }
+    }
+    $cids = array_diff($cids, array_keys($fetched));
+    $this->stopStopwatch($start, "GET_MULTIPLE got " . count($fetched) . " items");
+    return $fetched;
+  }
+
+  /**
+   * Sets cache record(s) for a specific cache ID(s).
+   */
+  public function set($cid, $data, $expire = CacheBackendInterface::CACHE_PERMANENT, array $tags = []) {
+    $start = $this->startStopwatch();
+    $item = $this->processItemForSet($cid, $data, $expire, $tags);
+    $ttl = $item->ttl;
+    unset($item->ttl);
+
+    $setResponse = $this->client->set($this->cacheName, $this->getCidForBin($cid), serialize($item), $ttl);
+    if ($setResponse->asError()) {
+      $this->log("SET response error for bin $this->bin: " . $setResponse->asError()->message(), TRUE);
+    }
+    else {
+      $this->stopStopwatch(
+            $start, "SET cid $cid in bin $this->bin with ttl $ttl"
         );
-        return $fetched;
+    }
+  }
+
+  /**
+   * Sets multiple cache records for multiple cache IDs.
+   */
+  public function setMultiple(array $items) {
+    $start = $this->startStopwatch();
+    $futures = [];
+    foreach ($items as $cid => $item) {
+      $item = $this->processItemForSet(
+            $cid,
+            $item['data'],
+            $item['expire'] ?? CacheBackendInterface::CACHE_PERMANENT,
+            $item['tags'] ?? []
+        );
+      $ttl = $item->ttl;
+      unset($item->ttl);
+      $futures[] = $this->client->setAsync(
+            $this->cacheName,
+            $this->getCidForBin($cid),
+            serialize($item),
+            $ttl
+        );
     }
 
-    public function set($cid, $data, $expire = CacheBackendInterface::CACHE_PERMANENT, array $tags = [])
-    {
-        $start = $this->startStopwatch();
-        $item = $this->processItemForSet($cid, $data, $expire, $tags);
-        $ttl = $item->ttl;
-        unset($item->ttl);
-        $serialized_item = serialize($item);
+    foreach ($futures as $future) {
+      $setResponse = $future->wait();
+      if ($setResponse->asError()) {
+        $this->log(
+              "SET_MULTIPLE response error for bin $this->bin: " . $setResponse->asError()->message(),
+              TRUE
+          );
+      }
+    }
+    $this->stopStopwatch($start, "SET_MULTIPLE in bin $this->bin for " . count($items) . " items");
+  }
 
+  /**
+   * Deletes a cache record for a specific cache ID.
+   */
+  public function delete($cid) {
+    $start = $this->startStopwatch();
+    $deleteResponse = $this->client->delete($this->cacheName, $this->getCidForBin($cid));
+    if ($deleteResponse->asError()) {
+      $this->log(
+            "DELETE response error for $cid in bin $this->bin: " . $deleteResponse->asError()->message(),
+            TRUE
+        );
+    }
+    else {
+      $this->stopStopwatch($start, "DELETE cid $cid from bin $this->bin");
+    }
+  }
 
-        $setResponse = $this->client->set($this->cacheName, $this->getCidForBin($cid), $serialized_item, $ttl);
-        if ($setResponse->asError()) {
-            $this->log("SET response error for bin $this->bin: " . $setResponse->asError()->message(), true);
-        } else {
-            $this->stopStopwatch(
-                $start, "SET cid $cid in bin $this->bin with ttl $ttl and " . strlen($serialized_item) . " bytes"
-            );
-        }
+  /**
+   * Deletes multiple cache records for multiple cache IDs.
+   */
+  public function deleteMultiple(array $cids) {
+    $start = $this->startStopwatch();
+    foreach ($cids as $cid) {
+      $this->delete($cid);
+    }
+    $this->stopStopwatch($start, "DELETE_MULTIPLE in bin $this->bin for " . count($cids) . " items");
+  }
+
+  /**
+   * Deletes all cache records in a bin.
+   */
+  public function deleteAll() {
+    $start = $this->startStopwatch();
+    $this->setLastBinDeletionTime();
+    $this->stopStopwatch($start, "DELETE_ALL in bin $this->bin");
+  }
+
+  /**
+   * Invalidates a cache record for a specific cache ID.
+   */
+  public function invalidate($cid) {
+    $start = $this->startStopwatch();
+    $this->invalidateMultiple([$cid]);
+    $this->stopStopwatch($start, "INVALIDATE $cid for bin $this->bin");
+  }
+
+  /**
+   * Invalidates multiple cache records for multiple cache IDs.
+   */
+  public function invalidateMultiple(array $cids) {
+    $start = $this->startStopwatch();
+    $requestTime = \Drupal::time()->getRequestTime();
+    foreach ($cids as $cid) {
+      if ($item = $this->get($cid)) {
+        $this->set($item->cid, $item->data, $requestTime - 1, $item->tags);
+      }
+    }
+    $this->stopStopwatch($start, "INVALIDATE_MULTIPLE for " . count($cids) . " items in $this->bin");
+  }
+
+  /**
+   * Invalidates all cache records in a bin.
+   */
+  public function invalidateAll() {
+    $start = $this->startStopwatch();
+    $this->invalidateTags([$this->binTag]);
+    $this->stopStopwatch($start, "INVALIDATE_ALL for $this->bin");
+  }
+
+  /**
+   * Invalidates cache records by tag.
+   */
+  public function invalidateTags(array $tags) {
+    $start = $this->startStopwatch();
+    $this->checksumProvider->invalidateTags($tags);
+    $this->stopStopwatch($start, "INVALIDATE_TAGS for " . count($tags));
+  }
+
+  /**
+   * Removes a bin.
+   */
+  public function removeBin() {
+    $start = $this->startStopwatch();
+    $this->setLastBinDeletionTime();
+    $this->stopStopwatch($start, "REMOVE_BIN $this->bin");
+  }
+
+  /**
+   * Garbage collection.
+   */
+  public function garbageCollection() {
+    // Momento will invalidate items; That item's memory allocation is then
+    // freed up and reused. So nothing needs to be deleted/cleaned up here.
+  }
+
+  /**
+   * Process item for set.
+   */
+  private function processItemForSet($cid, $data, $expire = CacheBackendInterface::CACHE_PERMANENT, array $tags = []) {
+    assert(Inspector::assertAllStrings($tags));
+
+    // Add tag for invalidateAll()
+    $tags[] = $this->binTag;
+    $tags = array_unique($tags);
+    sort($tags);
+
+    $ttl = $this->maxTtl;
+    $item = new \stdClass();
+    $item->cid = $cid;
+    $item->tags = $tags;
+    $item->data = $data;
+    $item->created = round(microtime(TRUE), 3);
+    $item->valid = TRUE;
+    $item->checksum = $this->checksumProvider->getCurrentChecksum($tags);
+
+    $requestTime = \Drupal::time()->getRequestTime();
+    if ($expire != CacheBackendInterface::CACHE_PERMANENT) {
+      if ($expire < $requestTime) {
+        $item->valid = FALSE;
+      }
+      else {
+        $ttl = $expire - $requestTime;
+      }
+    }
+    $item->expire = $expire;
+    $item->ttl = $ttl;
+    return $item;
+  }
+
+  /**
+   * Validate item.
+   */
+  private function valid($item) {
+    // If container isn't initialized yet, use $SERVER's request time value.
+    try {
+      $requestTime = \Drupal::time()->getRequestTime();
+    }
+    catch (ContainerNotInitializedException $e) {
+      $requestTime = $_SERVER['REQUEST_TIME'];
+    }
+    $isValid = TRUE;
+    if ($item->expire != CacheBackendInterface::CACHE_PERMANENT && $item->expire < $requestTime) {
+      $item->valid = FALSE;
+      return FALSE;
     }
 
-    public function setMultiple(array $items)
-    {
-        $start = $this->startStopwatch();
+    if (!$this->checksumProvider->isValid($item->checksum, $item->tags)) {
+      $isValid = FALSE;
+    }
+    $item->valid = $isValid;
+    return $isValid;
+  }
 
-        $processed_items = [];
-        $maxTtl = $this->MAX_TTL;
-
-        foreach ($items as $cid => $item) {
-            $item = $this->processItemForSet(
-                $cid,
-                $item['data'] ?? '',
-                $item['expire'] ?? CacheBackendInterface::CACHE_PERMANENT,
-                $item['tags'] ?? []
-            );
-            $ttl = $item->ttl;
-            unset($item->ttl);
-            $serializedItem = serialize($item);
-            $cacheKey = $this->getCidForBin($cid);
-            $processed_items[$cacheKey] = $serializedItem;
-        }
-
-        $response = $this->client->setBatch($this->cacheName, $processed_items, $maxTtl);
-        if ($response->asError()) {
-            $this->log(
-                "SET_MULTIPLE response error for bin $this->bin: " . $response->asError()->message(),
-                true
-            );
-        }
-        $this->stopStopwatch($start, "SET_MULTIPLE in bin $this->bin for " . count($items) . " items");
+  /**
+   * Log.
+   */
+  private function log(string $message, bool $logToDblog = FALSE) {
+    if ($logToDblog) {
+      $this->getLogger('momento_cache')->error($message);
     }
 
-
-    public function delete($cid)
-    {
-        $start = $this->startStopwatch();
-        $deleteResponse = $this->client->delete($this->cacheName, $this->getCidForBin($cid));
-        if ($deleteResponse->asError()) {
-            $this->log(
-                "DELETE response error for $cid in bin $this->bin: " . $deleteResponse->asError()->message(),
-                true
-            );
-        } else {
-            $this->stopStopwatch($start, "DELETE cid $cid from bin $this->bin");
-        }
+    if (!$this->logFile) {
+      return;
     }
 
-    public function deleteMultiple(array $cids)
-    {
-        $start = $this->startStopwatch();
-        foreach ($cids as $cid) {
-            $this->delete($cid);
-        }
-        $this->stopStopwatch($start, "DELETE_MULTIPLE in bin $this->bin for " . count($cids) . " items");
+    if ($message[-1] != "\n") {
+      $message .= "\n";
     }
+    $mt = microtime(TRUE);
+    @error_log("[$mt] $message", 3, $this->logFile);
+  }
 
-    public function deleteAll()
-    {
-        $start = $this->startStopwatch();
+  /**
+   * Start stopwatch.
+   */
+  private function startStopwatch() {
+    return hrtime(TRUE);
+  }
+
+  /**
+   * Stop stopwatch.
+   */
+  private function stopStopwatch($startTime, $message = NULL) {
+    if (!$this->logFile) {
+      return;
+    }
+    $totalTimeMs = (hrtime(TRUE) - $startTime) / 1e+6;
+    if ($message) {
+      $this->log("$message [$totalTimeMs ms]\n");
+    }
+  }
+
+  /**
+   * Ensure last bin deletion time is set.
+   */
+  private function ensureLastBinDeletionTimeIsSet() {
+    if (!$this->lastBinDeletionTime) {
+      $getRequest = $this->client->get($this->cacheName, $this->bin);
+      if ($getRequest->asError()) {
+        $this->log(
+              "ERROR getting last deletion time for bin $this->bin: " . $getRequest->asError()->message()
+          );
         $this->setLastBinDeletionTime();
-        $this->stopStopwatch($start, "DELETE_ALL in bin $this->bin");
-    }
-
-    public function invalidate($cid)
-    {
-        $start = $this->startStopwatch();
-        $this->invalidateMultiple([$cid]);
-        $this->stopStopwatch($start, "INVALIDATE $cid for bin $this->bin");
-    }
-
-    public function invalidateMultiple(array $cids)
-    {
-        $start = $this->startStopwatch();
-        $requestTime = \Drupal::time()->getRequestTime();
-        foreach ($cids as $cid) {
-            if ($item = $this->get($cid)) {
-                $this->set($item->cid, $item->data, $requestTime - 1, $item->tags);
-            }
-        }
-        $this->stopStopwatch($start, "INVALIDATE_MULTIPLE for " . count($cids) . " items in $this->bin");
-    }
-
-    public function invalidateAll()
-    {
-        $start = $this->startStopwatch();
-        $this->invalidateTags([$this->binTag]);
-        $this->stopStopwatch($start, "INVALIDATE_ALL for $this->bin");
-    }
-
-    public function invalidateTags(array $tags)
-    {
-        $start = $this->startStopwatch();
-        $this->checksumProvider->invalidateTags($tags);
-        $this->stopStopwatch($start, "INVALIDATE_TAGS for " . count($tags));
-    }
-
-    public function removeBin()
-    {
-        $start = $this->startStopwatch();
+      }
+      elseif ($getRequest->asMiss()) {
         $this->setLastBinDeletionTime();
-        $this->stopStopwatch($start, "REMOVE_BIN $this->bin");
+      }
+      else {
+        $this->lastBinDeletionTime = intval($getRequest->asHit()->valueString());
+      }
     }
+  }
 
-    public function garbageCollection()
-    {
-        // Momento will invalidate items; That item's memory allocation is then
-        // freed up and reused. So nothing needs to be deleted/cleaned up here.
+  /**
+   * Set last bin deletion time.
+   */
+  private function setLastBinDeletionTime() {
+    $this->lastBinDeletionTime = round(microtime(TRUE), 3);
+    $setRequest = $this->client->set($this->cacheName, $this->bin, $this->lastBinDeletionTime);
+    if ($setRequest->asError()) {
+      $this->log(
+            "ERROR getting last deletion time for bin $this->bin: " . $setRequest->asError()->message()
+        );
     }
+  }
 
-    private function processItemForSet($cid, $data, $expire = CacheBackendInterface::CACHE_PERMANENT, array $tags = [])
-    {
-        assert(Inspector::assertAllStrings($tags));
-
-        // Add tag for invalidateAll()
-        $tags[] = $this->binTag;
-        $tags = array_unique($tags);
-        sort($tags);
-
-        $ttl = $this->MAX_TTL;
-        $item = new \stdClass();
-        $item->cid = $cid;
-        $item->tags = $tags;
-        $item->data = $data;
-        $item->created = round(microtime(TRUE), 3);
-        $item->valid = TRUE;
-        $item->checksum = $this->checksumProvider->getCurrentChecksum($tags);
-
-        $requestTime = \Drupal::time()->getRequestTime();
-        if ($expire != CacheBackendInterface::CACHE_PERMANENT) {
-            if ($expire < $requestTime) {
-                $item->valid = FALSE;
-            }
-        }
-        $item->expire = $expire;
-        $item->ttl = $ttl;
-        return $item;
-    }
-
-    private function valid($item) {
-        // If container isn't initialized yet, use $SERVER's request time value
-        try {
-            $requestTime = \Drupal::time()->getRequestTime();
-        } catch (ContainerNotInitializedException $e) {
-            $requestTime = $_SERVER['REQUEST_TIME'];
-        }
-        $isValid = TRUE;
-        if ($item->expire != CacheBackendInterface::CACHE_PERMANENT && $item->expire < $requestTime) {
-            $item->valid = FALSE;
-            return FALSE;
-        }
-
-        if (!$this->checksumProvider->isValid($item->checksum, $item->tags)) {
-            $isValid = FALSE;
-        }
-        $item->valid = $isValid;
-        return $isValid;
-    }
-
-    private function log(string $message, bool $logToDblog = false) {
-        if ($logToDblog) {
-            $this->getLogger('momento_cache')->error($message);
-        }
-
-        if (!$this->logFile) {
-            return;
-        }
-
-        if ($message[-1] != "\n") {
-            $message .= "\n";
-        }
-        $mt = microtime(true);
-        @error_log("[$mt] $message", 3, $this->logFile);
-    }
-
-    private function startStopwatch() {
-        return hrtime(true);
-    }
-
-    private function stopStopwatch($startTime, $message=null) {
-        if (!$this->logFile) {
-            return;
-        }
-        $totalTimeMs = (hrtime(true) - $startTime) / 1e+6;
-        if ($message) {
-            $this->log("$message [$totalTimeMs ms]\n");
-        }
-    }
-
-    private function ensureLastBinDeletionTimeIsSet() {
-        if (!$this->lastBinDeletionTime) {
-            $getRequest = $this->client->get($this->cacheName, $this->bin);
-            if ($getRequest->asError()) {
-                $this->log(
-                    "ERROR getting last deletion time for bin $this->bin: " . $getRequest->asError()->message()
-                );
-                $this->setLastBinDeletionTime();
-            } elseif ($getRequest->asMiss()) {
-                $this->setLastBinDeletionTime();
-            } else {
-                $this->lastBinDeletionTime = intval($getRequest->asHit()->valueString());
-            }
-        }
-    }
-
-    private function setLastBinDeletionTime() {
-        $this->lastBinDeletionTime = round(microtime(TRUE), 3);
-        $setRequest = $this->client->set($this->cacheName, $this->bin, $this->lastBinDeletionTime);
-        if ($setRequest->asError()) {
-            $this->log(
-                "ERROR getting last deletion time for bin $this->bin: " . $setRequest->asError()->message()
-            );
-        }
-    }
 }
