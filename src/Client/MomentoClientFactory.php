@@ -12,46 +12,46 @@ use Momento\Config\Configurations\Laptop;
  */
 class MomentoClientFactory {
 
-    /**
-     * The authentication provider.
-     *
-     * @var \Momento\Auth\StringMomentoTokenProvider
-     */
+  /**
+   * The authentication provider.
+   *
+   * @var \Momento\Auth\StringMomentoTokenProvider
+   */
   private $authProvider;
 
-    /**
-     * The cache client.
-     *
-     * @var \Momento\Cache\CacheClient
-     */
+  /**
+   * The cache client.
+   *
+   * @var \Momento\Cache\CacheClient
+   */
   private $client;
 
-    /**
-     * The client timeout in milliseconds.
-     *
-     * @var int
-     */
+  /**
+   * The client timeout in milliseconds.
+   *
+   * @var int
+   */
   private $clientTimeoutMsec;
 
-    /**
-     * Whether to force a new channel.
-     *
-     * @var bool
-     */
+  /**
+   * Whether to force a new channel.
+   *
+   * @var bool
+   */
   private $forceNewChannel;
 
-    /**
-     * The number of gRPC channels.
-     *
-     * @var int
-     */
+  /**
+   * The number of gRPC channels.
+   *
+   * @var int
+   */
   private $numGrpcChannels;
 
-    /**
-     * The log file.
-     *
-     * @var string
-     */
+  /**
+   * The log file.
+   *
+   * @var string
+   */
   private $logFile;
 
   /**
