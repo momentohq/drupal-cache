@@ -124,8 +124,8 @@ jobs:
       - name: Run PHPCS
         working-directory: ${{ env.DRUPAL_ROOT }}
         run: |
-          # vendor/bin/phpcs $MODULE_FOLDER --standard=Drupal \
-          #  --extensions=php,module,inc,install,test,info
+          vendor/bin/phpcs $MODULE_FOLDER --standard=Drupal \
+            --extensions=php,module,inc,install,test,info
 
       - name: Start Drush webserver and chromedriver
         working-directory: ${{ env.DRUPAL_ROOT }}
