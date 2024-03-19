@@ -130,7 +130,14 @@ class MomentoCacheBackend implements CacheBackendInterface {
       foreach ($futures as $cid => $future) {
         $getResponse = $future->wait();
         if ($getResponse->asHit()) {
-          $result = json_decode($getResponse->asHit()->valueString());
+          $result = unserialize(
+            $getResponse->asHit()->valueString(),
+            [
+              'allowed_classes' => [
+                MomentoCacheBackend::class,
+              ],
+            ]
+                 );
 
           if ($result->created <= $this->lastBinDeletionTime) {
             continue;
