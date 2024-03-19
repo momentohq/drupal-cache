@@ -131,7 +131,11 @@ class MomentoCacheBackend implements CacheBackendInterface {
         $getResponse = $future->wait();
         if ($getResponse->asHit()) {
           $result = unserialize($getResponse->asHit()->valueString(),
-              ['allowed_classes' => ['MomentoCacheBackend', 'MomentoCacheBackendTest']]);
+              ['allowed_classes' =>
+                  ['MomentoCacheBackend',
+                   'MomentoCacheBackendTest'
+                  ]
+              ]);
 
           if ($result->created <= $this->lastBinDeletionTime) {
             continue;
