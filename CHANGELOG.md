@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.5.4](https://github.com/momentohq/drupal-cache/compare/v0.5.3...v0.5.4) (2024-03-19)
+
+
+### Miscellaneous
+
+* add DrupalPractice as a phpcs standard ([#31](https://github.com/momentohq/drupal-cache/issues/31)) ([7bd13f2](https://github.com/momentohq/drupal-cache/commit/7bd13f27974b76125cf31aa89049d605146ce167))
+
 ## [0.5.3](https://github.com/momentohq/drupal-cache/compare/v0.5.2...v0.5.3) (2024-03-07)
 
 
