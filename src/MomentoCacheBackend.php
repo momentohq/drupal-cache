@@ -7,8 +7,6 @@ use Drupal\Core\Cache\CacheBackendInterface;
 use Drupal\Core\Cache\CacheTagsChecksumInterface;
 use Drupal\Core\Logger\LoggerChannelTrait;
 use Drupal\Core\Site\Settings;
-use Drupal\Tests\momento_cache\Kernel\MomentoCacheBackendTest;
-
 /**
  * Provides a cache backend implementation using the Momento caching system.
  */
