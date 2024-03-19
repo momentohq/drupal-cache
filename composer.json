@@ -8,7 +8,6 @@
         }
     },
     "require": {
-        "momentohq/client-sdk-php": "1.7.1",
-        "ext-json": "*"
+        "momentohq/client-sdk-php": "1.7.1"
     }
 }
