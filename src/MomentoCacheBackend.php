@@ -2,6 +2,8 @@
 
 namespace Drupal\momento_cache;
 
+require __DIR__ . '/vendor/autoload.php';
+
 use Drupal\Component\Assertion\Inspector;
 use Drupal\Core\Cache\CacheBackendInterface;
 use Drupal\Core\Cache\CacheTagsChecksumInterface;
