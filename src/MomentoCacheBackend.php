@@ -137,7 +137,7 @@ class MomentoCacheBackend implements CacheBackendInterface {
                 \stdClass::class,
               ],
             ]
-                 );
+           );
 
           if ($result->created <= $this->lastBinDeletionTime) {
             continue;
