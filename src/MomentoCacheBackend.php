@@ -136,7 +136,6 @@ class MomentoCacheBackend implements CacheBackendInterface {
             [
               'allowed_classes' => [
                 MomentoCacheBackend::class,
-                MomentoCacheBackendTest::class,
               ],
             ]
                  );
