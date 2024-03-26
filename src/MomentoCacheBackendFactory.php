@@ -50,17 +50,13 @@ class MomentoCacheBackendFactory implements CacheFactoryInterface {
   /**
    * Constructs a new \Drupal\momento_cache\MomentoCacheBackendFactory object.
    */
-  public function __construct(
-        MomentoClientFactory $momento_factory,
-        CacheTagsChecksumInterface $checksum_provider
-    ) {
-    $this->momentoFactory = $momento_factory;
-    $this->checksumProvider = $checksum_provider;
-    $this->client = $this->momentoFactory->get();
-    $settings = Settings::get('momento_cache', []);
-    static::$cacheName = array_key_exists('cache_name', $settings) ?
-            $settings['cache_name'] : getenv("MOMENTO_CACHE_NAME");
-  }
+    public function __construct(MomentoClientFactory $momento_factory, CacheTagsChecksumInterface $checksum_provider) {
+        $this->momentoFactory = $momento_factory;
+        $this->checksumProvider = $checksum_provider;
+        $this->client = $this->momentoFactory->get();
+        $settings = Settings::get('momento_cache', []);
+        static::$cacheName = array_key_exists('cache_name', $settings) ? $settings['cache_name'] : getenv("MOMENTO_CACHE_NAME");
+    }
 
   /**
    * Gets the configured cache name.
