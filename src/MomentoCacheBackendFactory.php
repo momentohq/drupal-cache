@@ -47,6 +47,9 @@ class MomentoCacheBackendFactory implements CacheFactoryInterface {
    */
   private $backends = [];
 
+  /**
+   * Constructs a new MomentoCacheBackendFactory.
+   */
   public function __construct(
         MomentoClientFactory $momento_factory,
         CacheTagsChecksumInterface $checksum_provider
