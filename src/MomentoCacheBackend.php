@@ -78,9 +78,6 @@ class MomentoCacheBackend implements CacheBackendInterface {
    */
   private $logFile;
 
-  /**
-   * MomentoCacheBackend constructor.
-   */
   public function __construct(
         $bin,
         $client,

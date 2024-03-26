@@ -54,9 +54,6 @@ class MomentoClientFactory {
    */
   private $logFile;
 
-  /**
-   * MomentoClientFactory constructor.
-   */
   public function __construct() {
     $settings = Settings::get('momento_cache', []);
     $authToken = array_key_exists('api_token', $settings) ?
