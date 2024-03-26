@@ -79,13 +79,9 @@ class MomentoCacheBackend implements CacheBackendInterface {
   private $logFile;
 
   /**
-   * MomentoCacheBackend constructor.
+   * Constructs a new Drupal\momento_cache\MomentoCacheBackend object.
    */
-  public function __construct(
-        $bin,
-        $client,
-        CacheTagsChecksumInterface $checksum_provider
-    ) {
+  public function __construct($bin, $client, CacheTagsChecksumInterface $checksum_provider) {
     $this->maxTtl = intdiv(PHP_INT_MAX, 1000);
     $this->client = $client;
     $this->bin = $bin;
