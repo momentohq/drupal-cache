@@ -79,7 +79,7 @@ class MomentoCacheBackend implements CacheBackendInterface {
   private $logFile;
 
   /**
-   * Constructs a new MomentoCacheBackend object.
+   * Constructs a new Drupal\momento_cache\MomentoCacheBackend object.
    */
   public function __construct(
         $bin,

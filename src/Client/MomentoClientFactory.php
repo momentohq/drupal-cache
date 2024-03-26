@@ -55,7 +55,7 @@ class MomentoClientFactory {
   private $logFile;
 
   /**
-   * Constructs a new MomentoClientFactory.
+   * Constructs a new \Drupal\momento_cache\Client\MomentoClientFactory object.
    */
   public function __construct() {
     $settings = Settings::get('momento_cache', []);
