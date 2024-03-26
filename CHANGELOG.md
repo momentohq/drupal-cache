@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.5.5](https://github.com/momentohq/drupal-cache/compare/v0.5.4...v0.5.5) (2024-03-26)
+
+
+### Bug Fixes
+
+* remove constructor doc comments ([#33](https://github.com/momentohq/drupal-cache/issues/33)) ([afa32f1](https://github.com/momentohq/drupal-cache/commit/afa32f11ac45f9ca0518b5b13c5e63064373482d))
+
 ## [0.5.4](https://github.com/momentohq/drupal-cache/compare/v0.5.3...v0.5.4) (2024-03-19)
 
 
