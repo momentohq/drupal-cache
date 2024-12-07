@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.5.6](https://github.com/momentohq/drupal-cache/compare/v0.5.5...v0.5.6) (2024-12-07)
+
+
+### Miscellaneous
+
+* update license file ([#35](https://github.com/momentohq/drupal-cache/issues/35)) ([0546564](https://github.com/momentohq/drupal-cache/commit/0546564f24c95de27d4d6e089c9ba94b2defaeb9))
+
 ## [0.5.5](https://github.com/momentohq/drupal-cache/compare/v0.5.4...v0.5.5) (2024-03-26)
 
 
